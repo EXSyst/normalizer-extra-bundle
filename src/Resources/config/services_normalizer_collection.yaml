@@ -1,0 +1,9 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  EXSyst\NormalizerExtraBundle\Normalizer\CollectionNormalizer:
+    tags:
+      - { name: serializer.normalizer, priority: -989 }

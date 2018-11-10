@@ -1,0 +1,10 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  EXSyst\NormalizerExtraBundle\Listener\SerializerViewListener:
+    tags:
+      - { name: kernel.event_listener, event: kernel.controller, method: onKernelController, priority: -32768 }
+      - { name: kernel.event_listener, event: kernel.view, method: onKernelView, priority: -128 }

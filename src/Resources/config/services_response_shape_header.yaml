@@ -1,0 +1,14 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  exsyst_normalizer_extra.json_header_listener.response_shape:
+    class: EXSyst\NormalizerExtraBundle\Listener\JsonHeaderListener
+    arguments:
+      $headerName: Response-Shape
+      $attributeName: shape
+      $allowFromQuery: '%kernel.debug%'
+    tags:
+      - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest, priority: 96 }
