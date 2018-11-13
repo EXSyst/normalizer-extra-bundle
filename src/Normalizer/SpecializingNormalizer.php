@@ -11,12 +11,12 @@
 
 namespace EXSyst\NormalizerExtraBundle\Normalizer;
 
+use EXSyst\NormalizerExtraBundle\Compatibility\CacheableSupportsMethodInterface;
 use EXSyst\NormalizerExtraBundle\Compiler\SpecializedNormalizerCompiler;
 use EXSyst\NormalizerExtraBundle\Initializer\EntityInitializer;
 use Symfony\Component\Serializer\Exception\BadMethodCallException;
 use Symfony\Component\Serializer\Exception\CircularReferenceException;
 use Symfony\Component\Serializer\Mapping\ClassDiscriminatorResolverInterface;
-use Symfony\Component\Serializer\Normalizer\CacheableSupportsMethodInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;

@@ -1,9 +1,7 @@
 services:
-  _defaults:
+  EXSyst\NormalizerExtraBundle\Metadata\AutoNormalizableMetadataProvider:
     autowire: true
     autoconfigure: true
     public: false
-
-  EXSyst\NormalizerExtraBundle\Metadata\AutoNormalizableMetadataProvider:
     tags:
       - { name: exsyst.normalizer_extra.property_provider, priority: 255 }

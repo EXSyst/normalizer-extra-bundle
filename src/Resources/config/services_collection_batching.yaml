@@ -1,7 +1,5 @@
 services:
-  _defaults:
+  EXSyst\NormalizerExtraBundle\Initializer\CollectionInitializer:
     autowire: true
     autoconfigure: true
     public: false
-
-  EXSyst\NormalizerExtraBundle\Initializer\CollectionInitializer: {}

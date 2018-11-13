@@ -1,13 +1,10 @@
 services:
-  _defaults:
-    autowire: true
-    autoconfigure: true
-    public: false
-
   EXSyst\NormalizerExtraBundle\Metadata\ChainNormalizableMetadataProvider:
     arguments:
       $providers: null
+    autowire: true
     autoconfigure: false
+    public: false
     lazy: true
 
   EXSyst\NormalizerExtraBundle\Metadata\NormalizableMetadataProviderInterface:
@@ -16,5 +13,8 @@ services:
   EXSyst\NormalizerExtraBundle\Normalizer\BreadthFirstNormalizer:
     arguments:
       $implicit: '%exsyst_normalizer_extra.implicit_breadth_first%'
+    autowire: true
+    autoconfigure: true
+    public: false
     tags:
       - { name: serializer.normalizer, priority: 32767 }

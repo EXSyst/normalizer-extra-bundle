@@ -1,13 +1,14 @@
 services:
-  _defaults:
+  EXSyst\NormalizerExtraBundle\Compiler\SpecializedNormalizerCompiler:
+    arguments:
+      $cacheDirectory: '%kernel.cache_dir%/exsyst-normalizer-extra/specialized-normalizers'
     autowire: true
     autoconfigure: true
     public: false
 
-  EXSyst\NormalizerExtraBundle\Compiler\SpecializedNormalizerCompiler:
-    arguments:
-      $cacheDirectory: '%kernel.cache_dir%/exsyst-normalizer-extra/specialized-normalizers'
-
   EXSyst\NormalizerExtraBundle\Normalizer\SpecializingNormalizer:
+    autowire: true
+    autoconfigure: true
+    public: false
     tags:
       - { name: serializer.normalizer, priority: -999 }
