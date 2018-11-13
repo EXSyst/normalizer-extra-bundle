@@ -276,7 +276,7 @@ class SpecializedNormalizerCompiler
                     ->printfln('\'shape\'             => $context[\'shape\'][%s] ?? null,', \var_export($property, true))
                 ;
                 if (null !== $meta->readGroups) {
-                    $fd->printfln('\'groups\'            => %s,', \var_export($meta->readGroups, true));
+                    $fd->printfln('\'groups\'            => ($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s,', \var_export($meta->readGroups, true));
                 }
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
@@ -416,7 +416,7 @@ class SpecializedNormalizerCompiler
                     ->printfln('\'shape\'             => $context[\'shape\'][%s] ?? null,', \var_export($property, true))
                 ;
                 if (null !== $meta->readGroups) {
-                    $fd->printfln('\'groups\'            => %s,', \var_export($meta->readGroups, true));
+                    $fd->printfln('\'groups\'            => ($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s,', \var_export($meta->readGroups, true));
                 }
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))

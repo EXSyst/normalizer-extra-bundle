@@ -107,7 +107,7 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
 
         $context['hl_stack_trace'][] = [
             'class'    => \get_class($object),
-            'identity' => $specializedNormalizer->normalize($object, 'json', ['groups' => ['identity']]),
+            'identity' => $specializedNormalizer->normalize($object, 'json', ['groups' => ['identity'], 'force_groups' => true]),
             'groups'   => $context['groups'] ?? null,
             'inbound'  => $context['inbound_property'] ?? null,
         ];

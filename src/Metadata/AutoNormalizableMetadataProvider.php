@@ -147,10 +147,10 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
 
             $property->getTemplate = (null !== $reflGetter)
                 ? \sprintf('%%s->%s()', \str_replace('%', '%%', $reflGetter->name))
-                : ($reflProperty->isPublic() ? \sprintf('%%s->%s', \str_replace('%', '%%', $property->originalName)) : null);
+                : (null !== $reflProperty && $reflProperty->isPublic() ? \sprintf('%%s->%s', \str_replace('%', '%%', $property->originalName)) : null);
             $property->setTemplate = (null !== $reflSetter)
                 ? \sprintf('%%s->%s(%%s);', \str_replace('%', '%%', $reflSetter->name))
-                : ($reflProperty->isPublic() ? \sprintf('%%s->%s = %%s;', \str_replace('%', '%%', $property->originalName)) : null);
+                : (null !== $reflProperty && $reflProperty->isPublic() ? \sprintf('%%s->%s = %%s;', \str_replace('%', '%%', $property->originalName)) : null);
 
             /** @var Association|null $associationAnnotation */
             $associationAnnotation = null;
