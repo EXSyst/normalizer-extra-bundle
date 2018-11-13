@@ -620,12 +620,6 @@ class SpecializedNormalizerCompiler
         $fd
             ->printfln('$attributes = $this->getReadAttributeSet($context);')
             ->printfln()
-            ->printfln('if (isset($context[\'skip_property\'])) {')
-            ->indent()
-            ->printfln('unset($attributes[$context[\'skip_property\']]);')
-            ->outdent()
-            ->printfln('}')
-            ->printfln()
         ;
         self::emitSecurityChecks($fd, $groupsReadSecurity, $groupsAttributes);
         foreach ($properties as $property => $meta) {
@@ -634,6 +628,12 @@ class SpecializedNormalizerCompiler
             }
         }
         $fd
+            ->printfln('if (isset($context[\'skip_property\'])) {')
+            ->indent()
+            ->printfln('unset($attributes[$context[\'skip_property\']]);')
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
             ->printfln('if (isset($context[\'inline_property\'])) {')
             ->indent()
             ->printfln('$attributes[$context[\'inline_property\']] = true;')
