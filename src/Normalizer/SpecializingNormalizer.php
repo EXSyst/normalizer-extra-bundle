@@ -116,7 +116,7 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
         }
 
         if (!isset($context['shape'])) {
-            $objectHash = \spl_object_hash($object);
+            $objectHash = \implode("\0", \array_merge([\spl_object_hash($object)], $context['groups'] ?? []));
             if (isset($context[ObjectNormalizer::CIRCULAR_REFERENCE_LIMIT][$objectHash])) {
                 throw new CircularReferenceException(\sprintf('A circular reference has been detected, while trying to normalize %s', self::hlStackTraceToString($context['hl_stack_trace'])));
             } else {
