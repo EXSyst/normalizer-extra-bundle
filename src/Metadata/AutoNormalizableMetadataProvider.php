@@ -251,7 +251,7 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
 
     private function getSyntheticAssociationAnnotation(?ClassMetadata $metadata, string $name, ?Association $physicalAssociation): ?Association
     {
-        if (!$metadata->hasAssociation($name)) {
+        if (null === $metadata || !$metadata->hasAssociation($name)) {
             return $physicalAssociation;
         }
 
