@@ -103,6 +103,9 @@ class SpecializedNormalizerCompiler
             if (!\rename($tmpFile, $compiledFile)) {
                 throw new IOException('Cannot rename temporary file with specialized normalizer for type '.$className);
             }
+            if (\function_exists('opcache_invalidate')) {
+                \opcache_invalidate($compiledFile, true);
+            }
         }
 
         require_once $compiledFile;
