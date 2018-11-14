@@ -25,7 +25,7 @@ use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 
 class SpecializedNormalizerCompiler
 {
-    private const PREFIX = 'Exn\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
+    private const PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
     private const SUFFIX = 'Normalizer';
 
     /** @var NormalizableMetadataProviderInterface */
@@ -478,7 +478,7 @@ class SpecializedNormalizerCompiler
             ->outdent()
             ->printfln('}')
         ;
-        $this->emitInstantiateFromORM($fd, $groupsAttributes, $properties, $className);
+        $this->emitInstantiateFromORM($fd, $groupsAttributes, $properties, $className, $helpers);
         $this->emitInstantiateWithFactoryOrConstructor($fd, $properties, $className, $factory, $helpers);
         $fd
             ->printfln('$class = \\get_class($object);')
@@ -523,7 +523,7 @@ class SpecializedNormalizerCompiler
                 if ($meta->autoPersist) {
                     $fd->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export(self::getDenormalizationClass($primaryType->getCollectionValueType()), true));
                 }
-                $this->emitDenormalizeCall($fd, $meta, '', $expression, $inverseMeta, $helpers);
+                self::emitDenormalizeCall($fd, $meta, '', $expression, $inverseMeta, $helpers);
                 $fd
                     ->outdent()
                     ->printfln('}')
@@ -537,7 +537,7 @@ class SpecializedNormalizerCompiler
                     ->indent()
                 ;
                 if (self::requiresDenormalization($primaryType)) {
-                    $this->emitDenormalizeCall($fd, $meta, '$value = ', 'null', $inverseMeta);
+                    self::emitDenormalizeCall($fd, $meta, '$value = ', 'null', $inverseMeta, $helpers);
                     $expression = '$value';
                 } else {
                     $expression = \sprintf('$data[%s]', \var_export($property, true));
@@ -651,7 +651,7 @@ class SpecializedNormalizerCompiler
         ;
     }
 
-    private static function emitInstantiateFromORM(StreamWriter $fd, array $groupsAttributes, array $properties, string $className): void
+    private static function emitInstantiateFromORM(StreamWriter $fd, array $groupsAttributes, array $properties, string $className, array $helpers): void
     {
         if (isset($groupsAttributes['identity'])) {
             $checks = self::generateChecks($groupsAttributes['identity']);
@@ -689,7 +689,7 @@ class SpecializedNormalizerCompiler
             foreach ($groupsAttributes['identity'] as $property => $_) {
                 $meta = $properties[$property];
                 if (self::requiresDenormalization($meta->type)) {
-                    self::emitDenormalizeCall($fd, $meta, \sprintf('$identity%d = ', $i));
+                    self::emitDenormalizeCall($fd, $meta, \sprintf('$identity%d = ', $i), 'null', null, $helpers);
                     $identifier[$meta->originalName] = \sprintf('$identity%d', $i);
                 } else {
                     $identifier[$meta->originalName] = \sprintf('$data[%s]', \var_export($property, true));
@@ -760,7 +760,7 @@ class SpecializedNormalizerCompiler
                         if (null !== $property) {
                             if (self::requiresDenormalization($primaryType)) {
                                 $fd->printfln('if ($attributes[%s] ?? false) {', \var_export($property->name, true));
-                                self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i));
+                                self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                                 $fd
                                     ->printfln('} else {')
                                     ->indent()
@@ -784,7 +784,7 @@ class SpecializedNormalizerCompiler
                         if (null !== $property) {
                             if (self::requiresDenormalization($primaryType)) {
                                 $fd->printfln('if ($attributes[%s] ?? false) {', \var_export($property->name, true));
-                                self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i));
+                                self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                                 $fd
                                     ->printfln('} else {')
                                     ->indent()
@@ -808,7 +808,7 @@ class SpecializedNormalizerCompiler
                             ->printfln('}')
                         ;
                         if (self::requiresDenormalization($primaryType)) {
-                            self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i));
+                            self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                             $args[] = \sprintf('$param%d', $i);
                         } else {
                             $args[] = \sprintf('$data[%s]', \var_export($property->name, true));

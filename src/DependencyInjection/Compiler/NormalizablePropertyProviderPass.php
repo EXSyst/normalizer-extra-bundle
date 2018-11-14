@@ -27,7 +27,7 @@ class NormalizablePropertyProviderPass implements CompilerPassInterface
 
         $chainDefinition = $container->getDefinition(ChainNormalizableMetadataProvider::class);
 
-        $taggedServices = $container->findTaggedServiceIds('exsyst.normalizer_extra.property_provider');
+        $taggedServices = $container->findTaggedServiceIds('exsyst.normalizer_extra.metadata_provider');
 
         $prioritizedProviders = [];
         foreach ($taggedServices as $id => $tags) {

@@ -4,4 +4,4 @@ services:
     autoconfigure: true
     public: false
     tags:
-      - { name: exsyst.normalizer_extra.property_provider, priority: 255 }
+      - { name: exsyst.normalizer_extra.metadata_provider, priority: 255 }

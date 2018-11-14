@@ -25,7 +25,7 @@ class EXSystNormalizerExtraBundle extends Bundle
     public function build(ContainerBuilder $container)
     {
         $container->registerForAutoconfiguration(NormalizableMetadataProviderInterface::class)
-            ->addTag('exsyst.normalizer_extra.property_provider');
+            ->addTag('exsyst.normalizer_extra.metadata_provider');
         $container->addCompilerPass(new NormalizablePropertyProviderPass());
     }
 
