@@ -80,6 +80,9 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
     /** {@inheritdoc} */
     public function getGroupsSecurity(string $className): ?GroupsSecurity
     {
+        $parentClass = \get_parent_class($className);
+        $parent = (false !== $parentClass) ? $this->getGroupsSecurity($parentClass) : null;
+
         $reflClass = new \ReflectionClass($className);
         /** @var GroupsReadSecurity|null $readAnnotation */
         $readAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsReadSecurity::class);
@@ -87,12 +90,17 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         $writeAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsWriteSecurity::class);
 
         if (null === $readAnnotation && null === $writeAnnotation) {
-            return null;
+            return $parent;
         }
 
         $security = new GroupsSecurity();
         $security->readAttributes = (null === $readAnnotation) ? [] : $readAnnotation->value;
         $security->writeAttributes = (null === $writeAnnotation) ? [] : $writeAnnotation->value;
+
+        if (null !== $parent) {
+            $security->readAttributes += $parent->readAttributes;
+            $security->writeAttributes += $parent->writeAttributes;
+        }
 
         return $security;
     }
@@ -100,11 +108,14 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
     /** {@inheritdoc} */
     public function getGroupsInitializers(string $className): ?array
     {
+        $parentClass = \get_parent_class($className);
+        $parent = (false !== $parentClass) ? $this->getGroupsInitializers($parentClass) : null;
+
         $reflClass = new \ReflectionClass($className);
         /** @var GroupsInitializers|null $initializersAnnotation */
         $initializersAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsInitializers::class);
 
-        return (null !== $initializersAnnotation) ? $initializersAnnotation->value : null;
+        return (null !== $initializersAnnotation && null !== $initializersAnnotation->value) ? ($initializersAnnotation->value + ($parent ?? [])) : $parent;
     }
 
     /** {@inheritdoc} */
