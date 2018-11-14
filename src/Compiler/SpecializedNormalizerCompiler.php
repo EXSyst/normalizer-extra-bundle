@@ -230,7 +230,7 @@ class SpecializedNormalizerCompiler
             ->printfln('public function normalize($object, $format = null, array $context = [])')
             ->printfln('{')
             ->indent()
-            ->printfln('if (isset($context[\'breadth_first_helper\'])) {')
+            ->printfln('if (isset($context[\'breadth_first_helper\']) && $context[\'breadth_first_helper\']->getCurrentObject() === $object) {')
             ->indent()
             ->printfln('$this->normalizeBreadthFirst($object, $format, $context);')
             ->printfln()

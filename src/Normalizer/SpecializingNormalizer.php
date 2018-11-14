@@ -87,7 +87,7 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
     /** {@inheritdoc} */
     public function normalize($object, $format = null, array $context = [])
     {
-        if (null !== $this->initializer && isset($context['breadth_first_helper']) && $this->initializer->collect($object)) {
+        if (null !== $this->initializer && isset($context['breadth_first_helper']) && $context['breadth_first_helper']->getCurrentObject() === $object && $this->initializer->collect($object)) {
             $helper = $context['breadth_first_helper'];
             $normalized = &$helper->getCurrentBindPoint();
             $helper->registerInitializer($this->initializer);

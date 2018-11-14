@@ -32,6 +32,9 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     /** @var mixed */
     private $currentBindPoint;
 
+    /** @var mixed */
+    private $currentObject;
+
     public function __construct($root = null)
     {
         $this->root = $root;
@@ -47,6 +50,11 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     public function &getCurrentBindPoint()
     {
         return $this->currentBindPoint;
+    }
+
+    public function getCurrentObject()
+    {
+        return $this->currentObject;
     }
 
     public function registerInitializer(InitializerInterface $initializer): self
@@ -76,12 +84,14 @@ class BreadthFirstHelper implements NormalizerAwareInterface
             }
             foreach ($queue as $instruction) {
                 $this->currentBindPoint = &$instruction[0];
+                $this->currentObject = $instruction[2];
                 $result = $instruction[1]->normalize($instruction[2], $instruction[3], $instruction[4]);
                 if (null !== $result) {
                     $this->currentBindPoint = $result;
                 }
             }
             unset($this->currentBindPoint);
+            unset($this->currentObject);
         }
 
         return $this;

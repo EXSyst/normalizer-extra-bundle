@@ -149,7 +149,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     /** {@inheritdoc} */
     public function normalize($object, $format = null, array $context = [])
     {
-        if (isset($context['breadth_first_helper'])) {
+        if (isset($context['breadth_first_helper']) && $context['breadth_first_helper']->getCurrentObject() === $object) {
             $this->normalizeBreadthFirst($object, $format, $context);
 
             return null;
