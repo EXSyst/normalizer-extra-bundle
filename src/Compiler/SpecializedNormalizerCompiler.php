@@ -279,7 +279,7 @@ class SpecializedNormalizerCompiler
                     ->printfln('\'shape\'             => $context[\'shape\'][%s] ?? null,', \var_export($property, true))
                 ;
                 if (null !== $meta->readGroups) {
-                    $fd->printfln('\'groups\'            => ($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s,', \var_export($meta->readGroups, true));
+                    $fd->printfln('\'groups\'            => \is_bool($attributes[%s]) ? (($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s) : $attributes[%1$s],', \var_export($property, true), \var_export($meta->readGroups, true));
                 }
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
@@ -419,7 +419,7 @@ class SpecializedNormalizerCompiler
                     ->printfln('\'shape\'             => $context[\'shape\'][%s] ?? null,', \var_export($property, true))
                 ;
                 if (null !== $meta->readGroups) {
-                    $fd->printfln('\'groups\'            => ($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s,', \var_export($meta->readGroups, true));
+                    $fd->printfln('\'groups\'            => \is_bool($attributes[%s]) ? (($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s) : $attributes[%1$s],', \var_export($property, true), \var_export($meta->readGroups, true));
                 }
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
@@ -627,7 +627,7 @@ class SpecializedNormalizerCompiler
         self::emitSecurityChecks($fd, $groupsReadSecurity, $groupsAttributes);
         foreach ($properties as $property => $meta) {
             if ($meta->alwaysNormalize) {
-                $fd->printfln('$attributes[%s] = true;', \var_export($property, true));
+                $fd->printfln('$attributes[%s] = $attributes[%1$s] ?? [\'identity\'];', \var_export($property, true));
             }
         }
         $fd
