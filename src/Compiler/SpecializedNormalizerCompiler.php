@@ -456,7 +456,7 @@ class SpecializedNormalizerCompiler
             ->printfln('public function denormalize($data, $class, $format = null, array $context = [])')
             ->printfln('{')
             ->indent()
-            ->printfln('if ($data instanceof T) {')
+            ->printfln('if (null === $data || $data instanceof T) {')
             ->indent()
             ->printfln('return $data;')
             ->outdent()
