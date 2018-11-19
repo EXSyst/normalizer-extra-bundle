@@ -12,6 +12,7 @@
 namespace EXSyst\NormalizerExtraBundle\Compiler;
 
 use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\ORM\ORMInvalidArgumentException;
 use EXSyst\NormalizerExtraBundle\Metadata\ClassFactory;
 use EXSyst\NormalizerExtraBundle\Metadata\GroupsSecurity;
 use EXSyst\NormalizerExtraBundle\Metadata\NormalizableProperty;
@@ -181,6 +182,7 @@ class SpecializedNormalizerCompiler
             ->printfln('use %s;', ManagerRegistry::class)
             ->printfln('use %s;', AuthorizationCheckerInterface::class)
             ->printfln('use %s;', ExtraAttributesException::class)
+            ->printfln('use %s;', ORMInvalidArgumentException::class)
             ->printfln('use %s as Base;', SpecializedNormalizer::class)
             ->printfln('use %s as T;', $className)
             ->printfln()
@@ -700,6 +702,8 @@ class SpecializedNormalizerCompiler
                 ++$i;
             }
             $fd
+                ->printfln('try {')
+                ->indent()
                 ->printfln('$object = $this->doctrine->getManagerForClass(T::class)->find(T::class, [')
                 ->indent()
             ;
@@ -709,6 +713,13 @@ class SpecializedNormalizerCompiler
             $fd
                 ->outdent()
                 ->printfln(']);')
+                ->outdent()
+                ->printfln('} catch (ORMInvalidArgumentException $ex) {')
+                ->indent()
+                ->printfln('// Deserializing a relationship with attributes, an end of which is an entity in the process of creation.')
+                ->printfln('// Ignore the exception and carry on creating a new relationship object.')
+                ->outdent()
+                ->printfln('}')
                 ->outdent()
                 ->printfln('}')
             ;
