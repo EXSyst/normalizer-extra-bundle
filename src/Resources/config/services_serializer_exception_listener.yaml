@@ -1,0 +1,7 @@
+services:
+  EXSyst\NormalizerExtraBundle\Listener\SerializerExceptionListener:
+    autowire: true
+    autoconfigure: true
+    public: false
+    tags:
+      - { name: kernel.event_listener, event: kernel.exception, method: onKernelException, priority: -96 }

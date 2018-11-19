@@ -27,6 +27,10 @@ exsyst_normalizer_extra:
     # automatically turned into a Response. Disabled by default.
     serializer_view_listener: false
 
+    # Allows a controller to throw a HttpException and have it
+    # automatically turned into a Response. Disabled by default.
+    serializer_exception_listener: false
+
   normalizers:
     # A normalizer geared towards Doctrine collections, which also
     # supports most iterables (though in a limited way).

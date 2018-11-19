@@ -33,6 +33,7 @@ class Configuration implements ConfigurationInterface
                     ->children()
                         ->booleanNode('json_request_parser')->defaultTrue()->end()
                         ->booleanNode('response_shape_header')->defaultTrue()->end()
+                        ->booleanNode('serializer_exception_listener')->defaultFalse()->end()
                         ->booleanNode('serializer_view_listener')->defaultFalse()->end()
                     ->end()
                 ->end()

@@ -40,38 +40,42 @@ class SerializerViewListener
 
     public function onKernelView(GetResponseForControllerResultEvent $event): void
     {
-        if (!$event->hasResponse()) {
-            $data = $event->getControllerResult();
-            $request = $event->getRequest();
-            $controller = $this->controllers[$event->getRequest()];
-            unset($this->controllers[$event->getRequest()]);
-            if (null === $data) {
-                $reflector = Reflection::getCallableReflector($controller);
-                if (null !== $reflector->getReturnType()) {
-                    $event->setResponse(new Response('', 204));
-                }
-
-                return;
-            }
-            $groups = ['default'];
-            if ($request->attributes->has('_route')) {
-                $groups[] = 'default.'.$request->attributes->get('_route');
-            }
-            $format = $request->getRequestFormat('json');
-            try {
-                $serialized = $this->serializer->serialize($data, $format, [
-                    'groups'               => $groups,
-                    'allowed_groups'       => array_merge(['public'], $groups),
-                    'shape'                => $request->attributes->get('shape'),
-                    'check_authorizations' => true,
-                ]);
-            } catch (NotEncodableValueException $e) {
-                throw new NotFoundHttpException('This resource is not available in the requested format.', $e);
-            }
-            $response = new Response($serialized, 200, [
-                'Content-Type' => $request->getMimeType($format),
-            ]);
-            $event->setResponse($response);
+        if ($event->hasResponse()) {
+            return;
         }
+
+        $data = $event->getControllerResult();
+        $request = $event->getRequest();
+        $controller = $this->controllers[$event->getRequest()];
+        unset($this->controllers[$event->getRequest()]);
+        if (null === $data) {
+            $reflector = Reflection::getCallableReflector($controller);
+            if (null !== $reflector->getReturnType()) {
+                $event->setResponse(new Response('', 204));
+            }
+
+            return;
+        }
+
+        $groups = ['default'];
+        if ($request->attributes->has('_route')) {
+            $groups[] = 'default.'.$request->attributes->get('_route');
+        }
+        $format = $request->getRequestFormat('json');
+        try {
+            $serialized = $this->serializer->serialize($data, $format, [
+                'groups'               => $groups,
+                'allowed_groups'       => array_merge(['public'], $groups),
+                'shape'                => $request->attributes->get('shape'),
+                'check_authorizations' => true,
+            ]);
+        } catch (NotEncodableValueException $e) {
+            throw new NotFoundHttpException('This resource is not available in the requested format.', $e);
+        }
+
+        $response = new Response($serialized, 200, [
+            'Content-Type' => $request->getMimeType($format),
+        ]);
+        $event->setResponse($response);
     }
 }

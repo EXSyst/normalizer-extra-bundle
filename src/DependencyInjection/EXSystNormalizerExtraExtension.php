@@ -45,6 +45,9 @@ class EXSystNormalizerExtraExtension extends Extension
         if ($config['features']['serializer_view_listener']) {
             $loader->load('services_serializer_view_listener.yaml');
         }
+        if ($config['features']['serializer_exception_listener']) {
+            $loader->load('services_serializer_exception_listener.yaml');
+        }
         if ($config['normalizers']['collection']) {
             $loader->load('services_normalizer_collection.yaml');
         }
