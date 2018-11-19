@@ -835,11 +835,13 @@ class SpecializedNormalizerCompiler
             ->printfln('}')
             ->printfln()
         ;
-        foreach ($groupsAttributes['identity'] as $property => $_) {
-            $fd
-                ->printfln('unset($data[%s]);', \var_export($property, true))
-                ->printfln('unset($attributes[%s]);', \var_export($property, true))
-            ;
+        if (isset($groupsAttributes['identity'])) {
+            foreach ($groupsAttributes['identity'] as $property => $_) {
+                $fd
+                    ->printfln('unset($data[%s]);', \var_export($property, true))
+                    ->printfln('unset($attributes[%s]);', \var_export($property, true))
+                ;
+            }
         }
     }
 
