@@ -482,7 +482,7 @@ class SpecializedNormalizerCompiler
             ->printfln('}')
         ;
         $this->emitInstantiateFromORM($fd, $groupsAttributes, $properties, $className, $helpers);
-        $this->emitInstantiateWithFactoryOrConstructor($fd, $properties, $className, $factory, $helpers);
+        $this->emitInstantiateWithFactoryOrConstructor($fd, $groupsAttributes, $properties, $className, $factory, $helpers);
         $fd
             ->printfln('$class = \\get_class($object);')
             ->printfln('if (T::class !== $class) {')
@@ -712,12 +712,6 @@ class SpecializedNormalizerCompiler
                 ->outdent()
                 ->printfln('}')
             ;
-            foreach ($groupsAttributes['identity'] as $property => $_) {
-                $fd
-                    ->printfln('unset($data[%s]);', \var_export($property, true))
-                    ->printfln('unset($attributes[%s]);', \var_export($property, true))
-                ;
-            }
             $fd
                 ->printfln('if (null === $object && ($context[\'strict_find\'] ?? false)) {')
                 ->indent()
@@ -728,7 +722,7 @@ class SpecializedNormalizerCompiler
         }
     }
 
-    private function emitInstantiateWithFactoryOrConstructor(StreamWriter $fd, array $properties, string $className, ?ClassFactory $factory, array $helpers): void
+    private function emitInstantiateWithFactoryOrConstructor(StreamWriter $fd, array $groupsAttributes, array $properties, string $className, ?ClassFactory $factory, array $helpers): void
     {
         $fd
             ->printfln('if (null === $object) {')
@@ -841,6 +835,12 @@ class SpecializedNormalizerCompiler
             ->printfln('}')
             ->printfln()
         ;
+        foreach ($groupsAttributes['identity'] as $property => $_) {
+            $fd
+                ->printfln('unset($data[%s]);', \var_export($property, true))
+                ->printfln('unset($attributes[%s]);', \var_export($property, true))
+            ;
+        }
     }
 
     private static function emitSecurityChecks(StreamWriter $fd, array $groupsSecurity, array $groupsAttributes): void
