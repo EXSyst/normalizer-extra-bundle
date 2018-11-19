@@ -875,7 +875,7 @@ class SpecializedNormalizerCompiler
     private static function emitDenormalizeCall(StreamWriter $fd, NormalizableProperty $meta, string $assignment = '$value = ', string $objectToPopulate = 'null', ?NormalizableProperty $inverseMeta = null, ?array $helpers = null): void
     {
         $fd
-            ->printfln('%s$this->denormalizer->denormalize($data[%s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(self::getDenormalizationClass($meta->type), true))
+            ->printfln((null !== $meta->type && !$meta->type->isNullable()) ? '%s$this->denormalizer->denormalize($data[%s], %s, $format, [' : '%s(null === $data[%s]) ? null : $this->denormalizer->denormalize($data[%2$s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(self::getDenormalizationClass($meta->type), true))
             ->indent()
             ->printfln('\'object_to_populate\' => %s,', $objectToPopulate)
         ;
