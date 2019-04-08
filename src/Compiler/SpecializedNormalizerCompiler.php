@@ -903,7 +903,7 @@ class SpecializedNormalizerCompiler
             ->printfln('\'inbound_property\'   => %s,', \var_export($meta->name, true))
         ;
         if (null !== $inverseMeta) {
-            $fd->printfln('\'force_properties\'   => [%s => %s],', \var_export($inverseMeta->name, true), (null !== $inverseMeta->type && $inverseMeta->type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $inverseMeta->type->getBuiltinType()) ? \sprintf('isset($data[%s]) ? [\'$merge\', $data[%1$s], [\'$add\', $object]] : (\array_key_exists(%1$s, $data) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true)) : '$object');
+            $fd->printfln('\'force_properties\'   => \\is_array($data[%s]) ? [%s => %s] : null,', \var_export($meta->name, true), \var_export($inverseMeta->name, true), (null !== $inverseMeta->type && $inverseMeta->type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $inverseMeta->type->getBuiltinType()) ? \sprintf('isset($data[%s][%s]) ? [\'$merge\', $data[%1$s][%2$s], [\'$add\', $object]] : (\array_key_exists(%2$s, $data[%1$s]) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true), \var_export($inverseMeta->name, true)) : '$object');
         } else {
             $fd->printfln('\'force_properties\'   => null,');
         }
@@ -917,6 +917,9 @@ class SpecializedNormalizerCompiler
                 $fd->printfln('%s', $inverseRemove);
             }
             if ($meta->autoPersist) {
+                if (null === $inverseMeta) {
+                    throw new \TypeError('Property '.$meta->name.' must have an inverse');
+                }
                 self::emitRemoveFromORM($fd, $inverseMeta, $helpers, '$element');
             }
             $fd

@@ -73,7 +73,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
 
     private function updateCollection(Collection $collection, array $data, string $class, ?string $format, array $context): void
     {
-        if (\count($data) >= 1 && \is_string($data[0]) && \strlen($data[0]) >= 1 && '$' === $data[0][0]) {
+        if (\count($data) >= 1 && isset($data[0]) && \is_string($data[0]) && \strlen($data[0]) >= 1 && '$' === $data[0][0]) {
             $opCode = \substr(\array_shift($data), 1);
 
             if ('merge' !== $opCode && isset($context['index_by_property']) && 1 === \count($data) && \is_array($data[0])) {
