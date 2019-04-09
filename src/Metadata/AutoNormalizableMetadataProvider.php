@@ -152,8 +152,8 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
             }
             $property->type = $this->propertyInfoExtractor->getTypes($className, $property->originalName)[0] ?? null;
 
-            $reflGetter = self::getAnyMethod($reflClass, 'get'.\ucfirst($property->originalName), 'is'.\ucfirst($property->originalName), 'has'.\ucfirst($property->originalName), 'can'.\ucfirst($property->originalName));
-            $reflSetter = self::getAnyMethod($reflClass, 'set'.\ucfirst($property->originalName));
+            $reflGetter = self::getAnyMethodWithArity($reflClass, 0, 'get'.\ucfirst($property->originalName), 'is'.\ucfirst($property->originalName), 'has'.\ucfirst($property->originalName), 'can'.\ucfirst($property->originalName));
+            $reflSetter = self::getAnyMethodWithArity($reflClass, 1, 'set'.\ucfirst($property->originalName));
             $reflProperty = Reflection::getNonPublicProperty($reflClass, $property->originalName);
 
             $property->getTemplate = (null !== $reflGetter)
@@ -162,6 +162,10 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
             $property->setTemplate = (null !== $reflSetter)
                 ? \sprintf('%%s->%s(%%s);', \str_replace('%', '%%', $reflSetter->name))
                 : (null !== $reflProperty && $reflProperty->isPublic() ? \sprintf('%%s->%s = %%s;', \str_replace('%', '%%', $property->originalName)) : null);
+
+            if (!isset($property->getTemplate) && !isset($property->setTemplate)) {
+                continue;
+            }
 
             /** @var Association|null $associationAnnotation */
             $associationAnnotation = null;
@@ -202,6 +206,9 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
                 $property->indexBySubProperty = $collectionAnnotation->indexBy;
             }
         }
+        $properties = \array_filter($properties, function (NormalizableProperty $property): bool {
+            return isset($property->getTemplate) || isset($property->setTemplate);
+        });
 
         $mapping = $this->resolveMappingForClass($className);
         if (null !== $mapping) {
@@ -222,11 +229,14 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return $properties;
     }
 
-    private static function getAnyMethod(\ReflectionClass $class, string ...$methods): ?\ReflectionMethod
+    private static function getAnyMethodWithArity(\ReflectionClass $class, int $arity, string ...$methods): ?\ReflectionMethod
     {
         foreach ($methods as $method) {
             try {
-                return $class->getMethod($method);
+                $reflMethod = $class->getMethod($method);
+                if ($reflMethod->getNumberOfParameters() >= $arity && $reflMethod->getNumberOfRequiredParameters() <= $arity) {
+                    return $reflMethod;
+                }
             } catch (\ReflectionException $e) {
                 // ignore
             }
