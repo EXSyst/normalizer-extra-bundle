@@ -167,6 +167,10 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
                 unset($element[$key]);
             }
             unset($element);
+
+            if (empty($normalized)) {
+                $normalized = new \stdClass();
+            }
         }
 
         return $normalized;
@@ -187,15 +191,21 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
         $normalized = [];
 
         if (isset($context['index_by_property'])) {
+            $empty = true;
             $key = $context['index_by_property'];
             foreach ($object as $element) {
+                $empty = false;
                 $normalizedElement = null;
                 $helper->bind($normalizedElement, $this->normalizer, $element, $format, [
                     'continuation' => function () use (&$normalized, $key, &$normalizedElement): void {
                         $normalized[$normalizedElement[$key]] = &$normalizedElement;
+                        unset($normalizedElement[$key]);
                     },
                 ] + $context);
                 unset($normalizedElement);
+            }
+            if ($empty) {
+                $normalized = new \stdClass();
             }
         } else {
             foreach ($object as $key => $element) {
