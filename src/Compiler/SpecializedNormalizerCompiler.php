@@ -943,7 +943,7 @@ class SpecializedNormalizerCompiler
                 $fd
                     ->printfln('if (0 === \\count(%s)) {', $inverseExpression)
                     ->indent()
-                    ->printfln('$manager->remove($element);')
+                    ->printfln('$manager->remove(%s);', $previousValue)
                     ->outdent()
                     ->printfln('}')
                 ;
