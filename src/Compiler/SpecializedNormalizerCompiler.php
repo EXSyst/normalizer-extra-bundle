@@ -557,7 +557,7 @@ class SpecializedNormalizerCompiler
                     ;
                     if ($meta->autoPersist) {
                         $fd
-                            ->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export($meta->type, true))
+                            ->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export($primaryType->getClassName(), true))
                             ->printfln('$manager->persist(%s);', $expression)
                         ;
                     }
