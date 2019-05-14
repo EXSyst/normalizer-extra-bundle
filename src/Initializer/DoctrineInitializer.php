@@ -87,6 +87,7 @@ abstract class DoctrineInitializer implements InitializerInterface
             $j = 0;
             foreach ($identity as $value) {
                 $query->setParameter(\sprintf('id%d_%d', $j, $i), $value);
+                ++$j;
             }
             ++$i;
         }
