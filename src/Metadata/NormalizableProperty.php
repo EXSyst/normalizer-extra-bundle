@@ -42,6 +42,9 @@ class NormalizableProperty
     /** @var bool */
     public $autoPersist = false;
 
+    /** @var bool */
+    public $autoRemove = false;
+
     /** @var array|null */
     public $readGroups = null;
 

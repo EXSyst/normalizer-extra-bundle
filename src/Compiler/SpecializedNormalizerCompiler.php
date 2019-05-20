@@ -497,7 +497,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
                     ->indent()
                 ;
-                if ($meta->autoPersist) {
+                if ($meta->autoPersist || $meta->autoRemove) {
                     $fd->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export(self::getDenormalizationClass($primaryType->getCollectionValueType()), true));
                 }
                 self::emitDenormalizeCall($fd, $meta, '', $expression, $inverseMeta, $helpers);
@@ -522,7 +522,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 $assignment = $this->generateSet($meta, $helpers, '$object', $expression);
                 $oldExpression = $this->generateGet($meta, $helpers, '$object');
                 $inverseRemove = self::generateRemove($inverseMeta, $helpers, '$previousValue');
-                if (null !== $oldExpression && (null !== $inverseRemove || $meta->autoPersist)) {
+                if (null !== $oldExpression && (null !== $inverseRemove || $meta->autoPersist || $meta->autoRemove)) {
                     $fd
                         ->printfln('if (!\\is_object($data[%s])) {', \var_export($property, true))
                         ->indent()
@@ -541,7 +541,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     if (null !== $inverseRemove) {
                         $fd->printfln('%s', $inverseRemove);
                     }
-                    if ($meta->autoPersist) {
+                    if ($meta->autoRemove) {
                         $this->emitRemoveFromORM($fd, $inverseMeta, $helpers, '$previousValue');
                     }
                     $fd
@@ -880,15 +880,15 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             $fd->printfln('\'force_properties\'   => null,');
         }
         $inverseRemove = (null !== $helpers) ? self::generateRemove($inverseMeta, $helpers, '$element') : null;
-        if (null !== $inverseRemove || $meta->autoPersist) {
+        if (null !== $inverseRemove || $meta->autoRemove) {
             $fd
-                ->printfln('\'on_remove\'          => function ($element) use ($object%s): void {', $meta->autoPersist ? ', $manager' : '')
+                ->printfln('\'on_remove\'          => function ($element) use ($object%s): void {', $meta->autoRemove ? ', $manager' : '')
                 ->indent()
             ;
             if (null !== $inverseRemove) {
                 $fd->printfln('%s', $inverseRemove);
             }
-            if ($meta->autoPersist) {
+            if ($meta->autoRemove) {
                 if (null === $inverseMeta) {
                     throw new \TypeError('Property '.$meta->name.' must have an inverse');
                 }

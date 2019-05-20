@@ -187,6 +187,7 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
                 $property->inverseSubProperty = $associationAnnotation->inversedBy;
                 $property->inlineSubProperty = $associationAnnotation->inline;
                 $property->autoPersist = $associationAnnotation->autoPersist;
+                $property->autoRemove = $associationAnnotation->autoRemove ?? $associationAnnotation->autoPersist;
                 $property->readGroups = $associationAnnotation->readGroups;
                 $property->writeGroups = $associationAnnotation->writeGroups;
                 $autoToMany = null !== $property->type && $property->type->isCollection();

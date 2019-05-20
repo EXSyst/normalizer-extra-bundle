@@ -33,8 +33,11 @@ class Association
     /** @var string property of the target object (or its elements) to merge into the elements themselves */
     public $inline = null;
 
-    /** @var bool whether to automatically persist added elements in the ORM, and remove removed elements from the ORM */
+    /** @var bool whether to automatically persist added elements in the ORM */
     public $autoPersist = false;
+
+    /** @var bool|null whether to automatically remove removed elements from the ORM, omit to use the same value as autoPersist */
+    public $autoRemove = null;
 
     /** @var array groups to normalize in the elements (unless shape and allowed_groups are defined in the context), omit to inherit from the current object */
     public $readGroups = null;
