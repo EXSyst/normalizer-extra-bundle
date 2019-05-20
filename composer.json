@@ -17,7 +17,8 @@
     "symfony/http-foundation": "~3.4|~4.0",
     "symfony/property-info": "~3.4|~4.0",
     "doctrine/orm": "~2.6|dev-2.6-exsyst",
-    "doctrine/annotations": "~1.0"
+    "doctrine/annotations": "~1.0",
+    "exsyst/dynamic-class-generation-bundle": "0.1.*"
   },
   "autoload": {
     "psr-4": {

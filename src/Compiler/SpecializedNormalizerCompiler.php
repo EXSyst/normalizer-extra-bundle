@@ -13,6 +13,8 @@ namespace EXSyst\NormalizerExtraBundle\Compiler;
 
 use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\ORMInvalidArgumentException;
+use EXSyst\DynamicClassGenerationBundle\Compiler\ClassGeneratorInterface;
+use EXSyst\DynamicClassGenerationBundle\Compiler\ResolvedClassInfo;
 use EXSyst\NormalizerExtraBundle\Metadata\ClassFactory;
 use EXSyst\NormalizerExtraBundle\Metadata\GroupsSecurity;
 use EXSyst\NormalizerExtraBundle\Metadata\NormalizableProperty;
@@ -24,7 +26,7 @@ use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 
-class SpecializedNormalizerCompiler
+class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 {
     private const PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
     private const SUFFIX = 'Normalizer';
@@ -41,81 +43,51 @@ class SpecializedNormalizerCompiler
     /** @var ContainerInterface */
     private $container;
 
-    /** @var string */
-    private $cacheDirectory;
-
-    public function __construct(NormalizableMetadataProviderInterface $metadataProvider, ManagerRegistry $doctrine, ?AuthorizationCheckerInterface $authorizationChecker, ContainerInterface $container, string $cacheDirectory)
+    public function __construct(NormalizableMetadataProviderInterface $metadataProvider, ManagerRegistry $doctrine, ?AuthorizationCheckerInterface $authorizationChecker, ContainerInterface $container)
     {
         $this->metadataProvider = $metadataProvider;
         $this->doctrine = $doctrine;
         $this->authorizationChecker = $authorizationChecker;
         $this->container = $container;
-        if (!\is_dir($cacheDirectory)) {
-            \mkdir($cacheDirectory, 0777, true);
-        }
-        $this->cacheDirectory = \realpath($cacheDirectory);
-        if (!$this->cacheDirectory) {
-            throw new \RuntimeException('Invalid cache directory for specialized normalizers : '.$cacheDirectory);
-        }
+    }
+
+    public static function getNormalizerClassFor(string $className): string
+    {
+        return self::PREFIX.$className.self::SUFFIX;
     }
 
     public function getForClass(string $className): SpecializedNormalizer
     {
-        $normalizerClass = self::PREFIX.$className.self::SUFFIX;
-        if (!\class_exists($normalizerClass, false)) {
-            $this->loadNormalizerClassForClass($className);
-        }
+        $normalizerClass = self::getNormalizerClassFor($className);
 
         return new $normalizerClass($this->doctrine, $this->authorizationChecker, $this->container);
     }
 
-    public function invalidateForClass(string $className): void
+    public function generate(ResolvedClassInfo $class): bool
     {
-        $normalizerClass = self::PREFIX.$className.self::SUFFIX;
-        $compiledFile = $this->cacheDirectory.'/'.\str_replace('\\', '-', $normalizerClass).'.php';
-        \unlink($compiledFile);
-    }
-
-    private function loadNormalizerClassForClass(string $className): void
-    {
-        $normalizerClass = self::PREFIX.$className.self::SUFFIX;
-        $compiledFile = $this->cacheDirectory.'/'.\str_replace('\\', '-', $normalizerClass).'.php';
-        if (!\is_file($compiledFile)) {
-            $tmpFile = \tempnam($this->cacheDirectory, 'cmp');
-            if (false === $tmpFile) {
-                throw new IOException('Cannot create temporary file to compile specialized normalizer for type '.$className);
-            }
-            $fd = \fopen($tmpFile, 'wb');
-            if (false === $fd) {
-                throw new IOException('Cannot open temporary file to compile specialized normalizer for type '.$className);
-            }
-            try {
-                try {
-                    $this->compileNormalizerClass(new StreamWriter($fd), $className);
-                } finally {
-                    \fclose($fd);
-                }
-            } catch (\Throwable $e) {
-                \unlink($tmpFile);
-
-                throw $e;
-            }
-            \chmod($tmpFile, 0644);
-            if (!\rename($tmpFile, $compiledFile)) {
-                throw new IOException('Cannot rename temporary file with specialized normalizer for type '.$className);
-            }
-            if (\function_exists('opcache_invalidate')) {
-                \opcache_invalidate($compiledFile, true);
-            }
+        $rest = $class->getRest();
+        $suffixLength = \strlen(self::SUFFIX);
+        if (\strlen($rest) < $suffixLength || 0 !== \substr_compare($rest, self::SUFFIX, -$suffixLength, $suffixLength)) {
+            return false;
+        }
+        $fd = \fopen($class->getPath(), 'wb');
+        if (false === $fd) {
+            throw new IOException('Cannot open temporary file to compile class '.$class->getClass());
+        }
+        try {
+            $this->compileNormalizerClass(new StreamWriter($fd), $class);
+        } finally {
+            \fclose($fd);
         }
 
-        require_once $compiledFile;
+        return true;
     }
 
-    private function compileNormalizerClass(StreamWriter $fd, string $className): void
+    private function compileNormalizerClass(StreamWriter $fd, ResolvedClassInfo $class): void
     {
-        $normalizerClass = self::PREFIX.$className.self::SUFFIX;
+        $normalizerClass = $class->getClass();
         $nsPos = \strrpos($normalizerClass, '\\');
+        $className = \substr($class->getRest(), 0, -\strlen(self::SUFFIX));
 
         $helperIndex = 0;
         $helpers = [];

@@ -1,7 +1,5 @@
 services:
   EXSyst\NormalizerExtraBundle\Compiler\SpecializedNormalizerCompiler:
-    arguments:
-      $cacheDirectory: '%kernel.cache_dir%/exsyst-normalizer-extra/specialized-normalizers'
     autowire: true
     autoconfigure: true
     public: false
