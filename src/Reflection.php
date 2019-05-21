@@ -21,7 +21,7 @@ final class Reflection
     {
         if (is_array($callable)) {
             return new \ReflectionMethod($callable[0], $callable[1]);
-        } elseif (is_string($callable)) {
+        } elseif (is_string($callable) || $callable instanceof \Closure) {
             return new \ReflectionFunction($callable);
         } elseif (is_object($callable)) {
             $objReflector = new \ReflectionObject($callable);
