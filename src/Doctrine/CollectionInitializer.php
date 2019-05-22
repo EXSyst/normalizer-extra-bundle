@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace EXSyst\NormalizerExtraBundle\Initializer;
+namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
 use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;

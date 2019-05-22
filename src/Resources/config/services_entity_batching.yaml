@@ -1,5 +1,5 @@
 services:
-  EXSyst\NormalizerExtraBundle\Initializer\EntityInitializer:
+  EXSyst\NormalizerExtraBundle\Doctrine\EntityInitializer:
     autowire: true
     autoconfigure: true
     public: false

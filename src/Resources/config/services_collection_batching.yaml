@@ -1,5 +1,5 @@
 services:
-  EXSyst\NormalizerExtraBundle\Initializer\CollectionInitializer:
+  EXSyst\NormalizerExtraBundle\Doctrine\CollectionInitializer:
     autowire: true
     autoconfigure: true
     public: false

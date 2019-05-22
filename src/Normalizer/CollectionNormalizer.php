@@ -15,7 +15,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Persistence\ManagerRegistry;
 use EXSyst\NormalizerExtraBundle\Compatibility\CacheableSupportsMethodInterface;
-use EXSyst\NormalizerExtraBundle\Initializer\CollectionInitializer;
+use EXSyst\NormalizerExtraBundle\Doctrine\CollectionInitializer;
+use EXSyst\NormalizerExtraBundle\Doctrine\FlushProofUpdater;
 use Symfony\Component\Serializer\Normalizer\ContextAwareDenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
@@ -74,16 +75,19 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     private function updateCollection(Collection $collection, array $data, string $class, ?string $format, array $context): void
     {
         if (\count($data) >= 1 && isset($data[0]) && \is_string($data[0]) && \strlen($data[0]) >= 1 && '$' === $data[0][0]) {
-            $opCode = \substr(\array_shift($data), 1);
+            $opCode = CollectionOpCode::getValue(\strtoupper(\substr(\array_shift($data), 1))) ?? CollectionOpCode::UPDATE;
+            if (!CollectionOpCode::isValid($opCode)) {
+                $opCode = CollectionOpCode::UPDATE;
+            }
 
-            if ('merge' !== $opCode && isset($context['index_by_property']) && 1 === \count($data) && \is_array($data[0])) {
+            if (CollectionOpCode::MERGE !== $opCode && isset($context['index_by_property']) && 1 === \count($data) && \is_array($data[0])) {
                 $data = $data[0];
             }
         } else {
-            $opCode = 'set';
+            $opCode = CollectionOpCode::SET;
         }
 
-        if ('merge' === $opCode) {
+        if (CollectionOpCode::MERGE === $opCode) {
             foreach ($data as $element) {
                 $this->updateCollection($collection, $element, $class, $format, $context);
             }
@@ -104,17 +108,23 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
             $hashedCollection[\spl_object_hash($element)] = $element;
         }
 
+        $preWrite = CollectionOpCode::hasAdd($opCode) ? null : ((CollectionOpCode::REMOVE === $opCode) ? function (): bool {
+            return false;
+        } : function ($element) use ($hashedCollection) {
+            return isset($hashedCollection[\spl_object_hash($element)]);
+        });
         $hashedData = [];
         foreach ($data as $element) {
-            $element = $this->denormalizer->denormalize($element, $class, $format, $context);
+            $element = $this->denormalizer->denormalize($element, $class, $format, ['pre_write' => $preWrite] + $context);
             $hashedData[\spl_object_hash($element)] = $element;
         }
 
         $onRemove = $context['on_remove'] ?? null;
         $autoPersist = $context['auto_persist'] ?? false;
         $manager = $autoPersist ? $this->doctrine->getManagerForClass($class) : null;
+        $updater = isset($manager) ? FlushProofUpdater::fromManagerAndContext($manager, $context) : null;
 
-        if ('set' === $opCode || 'retain' === $opCode) {
+        if (CollectionOpCode::hasRetain($opCode)) {
             foreach ($hashedCollection as $hash => $element) {
                 if (!isset($hashedData[$hash])) {
                     $collection->removeElement($element);
@@ -125,16 +135,16 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
             }
         }
 
-        if ('set' === $opCode || 'add' === $opCode) {
+        if (CollectionOpCode::hasAdd($opCode)) {
             foreach ($hashedData as $hash => $element) {
                 if (!isset($hashedCollection[$hash])) {
                     $collection[] = $element;
                     if ($autoPersist) {
-                        $manager->persist($element);
+                        $updater->persist($element);
                     }
                 }
             }
-        } elseif ('remove' === $opCode) {
+        } elseif (CollectionOpCode::REMOVE === $opCode) {
             foreach ($hashedData as $hash => $element) {
                 if (isset($hashedCollection[$hash])) {
                     $collection->removeElement($element);
@@ -144,6 +154,8 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
                 }
             }
         }
+
+        FlushProofUpdater::updateCollectionUsingContext($collection, $context);
     }
 
     /** {@inheritdoc} */

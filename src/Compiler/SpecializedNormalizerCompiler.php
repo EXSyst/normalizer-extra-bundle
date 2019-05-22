@@ -15,6 +15,8 @@ use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use EXSyst\DynamicClassGenerationBundle\Compiler\ClassGeneratorInterface;
 use EXSyst\DynamicClassGenerationBundle\Compiler\ResolvedClassInfo;
+use EXSyst\DynamicClassGenerationBundle\Helper\StreamWriter;
+use EXSyst\NormalizerExtraBundle\Doctrine\FlushProofUpdater;
 use EXSyst\NormalizerExtraBundle\Metadata\ClassFactory;
 use EXSyst\NormalizerExtraBundle\Metadata\GroupsSecurity;
 use EXSyst\NormalizerExtraBundle\Metadata\NormalizableProperty;
@@ -152,6 +154,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln()
             ->printfln('use %s;', ContainerInterface::class)
             ->printfln('use %s;', ManagerRegistry::class)
+            ->printfln('use %s;', FlushProofUpdater::class)
             ->printfln('use %s;', AuthorizationCheckerInterface::class)
             ->printfln('use %s;', ExtraAttributesException::class)
             ->printfln('use %s;', ORMInvalidArgumentException::class)
@@ -469,6 +472,12 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->outdent()
             ->printfln('}')
             ->printfln()
+            ->printfln('if (isset($context[\'pre_write\']) && !empty($attributes) && !$context[\'pre_write\']($object)) {')
+            ->indent()
+            ->printfln('$attributes = [];')
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
         ;
         $this->emitSecurityChecks($fd, $groupsWriteSecurity, $groupsAttributes);
         $fd
@@ -498,7 +507,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->indent()
                 ;
                 if ($meta->autoPersist || $meta->autoRemove) {
-                    $fd->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export(self::getDenormalizationClass($primaryType->getCollectionValueType()), true));
+                    $fd->printfln('$updater = FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(%s), $context);', \var_export(self::getDenormalizationClass($primaryType->getCollectionValueType()), true));
                 }
                 self::emitDenormalizeCall($fd, $meta, '', $expression, $inverseMeta, $helpers);
                 $fd
@@ -527,11 +536,11 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                         ->printfln('if (!\\is_object($data[%s])) {', \var_export($property, true))
                         ->indent()
                     ;
+                    if ($meta->autoPersist || $meta->autoRemove) {
+                        $fd->printfln('$updater = FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(%s), $context);', \var_export($primaryType->getClassName(), true));
+                    }
                     if ($meta->autoPersist) {
-                        $fd
-                            ->printfln('$manager = $this->doctrine->getManagerForClass(%s);', \var_export($primaryType->getClassName(), true))
-                            ->printfln('$manager->persist(%s);', $expression)
-                        ;
+                        $fd->printfln('$updater->persist(%s);', $expression);
                     }
                     $fd
                         ->printfln('$previousValue = %s;', $oldExpression)
@@ -557,6 +566,16 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('}')
                 ;
             }
+        }
+        if (isset($groupsAttributes['identity'])) {
+            $fd
+                ->printfln()
+                ->printfln('if (!empty($attributes)) {')
+                ->indent()
+                ->printfln('FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(T::class), $context)->update($object);')
+                ->outdent()
+                ->printfln('}')
+            ;
         }
         $fd
             ->printfln()
@@ -601,7 +620,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         self::emitSecurityChecks($fd, $groupsReadSecurity, $groupsAttributes);
         foreach ($properties as $property => $meta) {
             if ($meta->alwaysNormalize) {
-                $fd->printfln('$attributes[%s] = $attributes[%1$s] ?? [\'identity\'];', \var_export($property, true));
+                $fd->printfln('$attributes[%s] = $attributes[%1$s] ?? [];', \var_export($property, true));
             }
         }
         $fd
@@ -882,7 +901,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         $inverseRemove = (null !== $helpers) ? self::generateRemove($inverseMeta, $helpers, '$element') : null;
         if (null !== $inverseRemove || $meta->autoRemove) {
             $fd
-                ->printfln('\'on_remove\'          => function ($element) use ($object%s): void {', $meta->autoRemove ? ', $manager' : '')
+                ->printfln('\'on_remove\'          => function ($element) use ($object%s): void {', $meta->autoRemove ? ', $updater' : '')
                 ->indent()
             ;
             if (null !== $inverseRemove) {
@@ -902,6 +921,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             $fd->printfln('\'on_remove\'          => null,');
         }
         $fd
+            ->printfln('\'pre_write\'          => null,')
             ->outdent()
             ->printfln('] + $context);')
         ;
@@ -915,13 +935,13 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 $fd
                     ->printfln('if (0 === \\count(%s)) {', $inverseExpression)
                     ->indent()
-                    ->printfln('$manager->remove(%s);', $previousValue)
+                    ->printfln('$updater->remove(%s);', $previousValue)
                     ->outdent()
                     ->printfln('}')
                 ;
             }
         } else {
-            $fd->printfln('$manager->remove(%s);', $previousValue);
+            $fd->printfln('$updater->remove(%s);', $previousValue);
         }
     }
 
