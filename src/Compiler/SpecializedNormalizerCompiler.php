@@ -398,9 +398,9 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('\'shape\'             => $context[\'shape\'][%s] ?? null,', \var_export($property, true))
                 ;
                 if (null !== $meta->readGroups) {
-                    $fd->printfln('\'groups\'            => $attributes[%s] ?? (($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s),', \var_export($property, true), \var_export($meta->readGroups, true));
+                    $fd->printfln('\'groups\'            => $subGroups[%s] ?? (($context[\'force_groups\'] ?? false) ? ($context[\'groups\'] ?? null) : %s),', \var_export($property, true), \var_export($meta->readGroups, true));
                 } else {
-                    $fd->printfln('\'groups\'            => $attributes[%s] ?? $context[\'groups\'] ?? null,', \var_export($property, true));
+                    $fd->printfln('\'groups\'            => $subGroups[%s] ?? $context[\'groups\'] ?? null,', \var_export($property, true));
                 }
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
