@@ -632,6 +632,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('$subGroups[%s] = [];', \var_export($property, true))
                     ->outdent()
                     ->printfln('}')
+                    ->printfln()
                 ;
             }
         }
@@ -639,6 +640,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('if (isset($context[\'skip_property\'])) {')
             ->indent()
             ->printfln('unset($attributes[$context[\'skip_property\']]);')
+            ->printfln('unset($subGroups[$context[\'skip_property\']]);')
             ->outdent()
             ->printfln('}')
             ->printfln()
@@ -646,6 +648,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->indent()
             ->printfln('$attributes[$context[\'inline_property\']] = true;')
             ->printfln('$context[\'shape\'][$context[\'inline_property\']] = $context[\'shape\'] ?? null;')
+            ->printfln('unset($subGroups[$context[\'inline_property\']]);')
             ->outdent()
             ->printfln('}')
             ->printfln()
@@ -653,6 +656,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->indent()
             ->printfln('$attributes[$context[\'index_by_property\']] = true;')
             ->printfln('$context[\'shape\'][$context[\'index_by_property\']] = $context[\'shape\'] ?? null;')
+            ->printfln('unset($subGroups[$context[\'index_by_property\']]);')
             ->outdent()
             ->printfln('}')
             ->printfln()
