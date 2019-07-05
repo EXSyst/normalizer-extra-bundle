@@ -501,7 +501,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             $primaryType = $meta->type;
             /** @var NormalizableProperty|null $inverseMeta */
             $inverseMeta = $inverses[$meta];
-            if (null !== $primaryType && $primaryType->isCollection() && Type::BUILTIN_TYPE_OBJECT === $primaryType->getBuiltinType()) {
+            if (self::isCollectionObject($primaryType)) {
                 if (!isset($meta->getTemplate)) {
                     continue;
                 }
@@ -894,8 +894,9 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
     private static function emitDenormalizeCall(StreamWriter $fd, NormalizableProperty $meta, string $assignment = '$value = ', string $objectToPopulate = 'null', ?NormalizableProperty $inverseMeta = null, ?array $helpers = null): void
     {
+        $primaryType = $meta->type;
         $fd
-            ->printfln((null !== $meta->type && !$meta->type->isNullable()) ? '%s$this->denormalizer->denormalize($data[%s], %s, $format, [' : '%s(null === $data[%s]) ? null : $this->denormalizer->denormalize($data[%2$s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(self::getDenormalizationClass($meta->type), true))
+            ->printfln(self::isNullable($primaryType) ? '%s(null === $data[%s]) ? null : $this->denormalizer->denormalize($data[%2$s], %s, $format, [' : '%s$this->denormalizer->denormalize($data[%s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(self::getDenormalizationClass($primaryType), true))
             ->indent()
             ->printfln('\'object_to_populate\' => %s,', $objectToPopulate)
         ;
@@ -910,12 +911,13 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('\'inbound_property\'   => %s,', \var_export($meta->name, true))
         ;
         if (null !== $inverseMeta) {
-            $fd->printfln('\'force_properties\'   => \\is_array($data[%s]) ? [%s => %s] : null,', \var_export($meta->name, true), \var_export($inverseMeta->name, true), (null !== $inverseMeta->type && $inverseMeta->type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $inverseMeta->type->getBuiltinType()) ? \sprintf('isset($data[%s][%s]) ? [\'$merge\', $data[%1$s][%2$s], [\'$add\', $object]] : (\array_key_exists(%2$s, $data[%1$s]) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true), \var_export($inverseMeta->name, true)) : '$object');
+            $fd->printfln('\'force_properties\'   => \\is_array($data[%s]) ? [%s => %s] : null,', \var_export($meta->name, true), \var_export($inverseMeta->name, true), self::isCollectionObject($inverseMeta->type) ? \sprintf('isset($data[%s][%s]) ? [\'$merge\', $data[%1$s][%2$s], [\'$add\', $object]] : (\array_key_exists(%2$s, $data[%1$s]) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true), \var_export($inverseMeta->name, true)) : '$object');
         } else {
             $fd->printfln('\'force_properties\'   => null,');
         }
-        $inverseRemove = (null !== $helpers) ? self::generateRemove($inverseMeta, $helpers, '$element') : null;
-        if (null !== $inverseRemove || $meta->autoRemove) {
+        $isCollectionObject = self::isCollectionObject($primaryType);
+        $inverseRemove = ($isCollectionObject && null !== $helpers) ? self::generateRemove($inverseMeta, $helpers, '$element') : null;
+        if ($isCollectionObject && (null !== $inverseRemove || $meta->autoRemove)) {
             $fd
                 ->printfln('\'on_remove\'          => function ($element) use ($object%s): void {', $meta->autoRemove ? ', $updater' : '')
                 ->indent()
@@ -945,7 +947,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
     private static function emitRemoveFromORM(StreamWriter $fd, NormalizableProperty $inverseMeta, array $helpers, string $previousValue): void
     {
-        if (null !== $inverseMeta->type && $inverseMeta->type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $inverseMeta->type->getBuiltinType()) {
+        if (self::isCollectionObject($inverseMeta->type)) {
             if (isset($inverseMeta->getTemplate)) {
                 $inverseExpression = self::generateGet($inverseMeta, $helpers, $previousValue);
                 $fd
@@ -979,7 +981,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
         $add = null;
         $remove = null;
-        if (null !== $meta->type && $meta->type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $meta->type->getBuiltinType()) {
+        if (self::isCollectionObject($meta->type)) {
             if (isset($meta->getTemplate)) {
                 $inverseExpression = self::generateGet($meta, $helpers, $old);
                 $remove = \sprintf('%s->removeElement($object);', $inverseExpression);
@@ -1024,5 +1026,15 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
     private static function getDenormalizationClass(Type $type): string
     {
         return $type->isCollection() ? (self::getDenormalizationClass($type->getCollectionValueType()).'[]') : ($type->getClassName() ?? $type->getBuiltinType());
+    }
+
+    private static function isNullable(?Type $type): bool
+    {
+        return null === $type || $type->isNullable();
+    }
+
+    private static function isCollectionObject(?Type $type): bool
+    {
+        return null !== $type && $type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType();
     }
 }
