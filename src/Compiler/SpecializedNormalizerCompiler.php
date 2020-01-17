@@ -110,6 +110,9 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             if (isset($meta->getHelper) && !isset($helpers[$meta->getHelper])) {
                 $helpers[$meta->getHelper] = 'helper'.$helperIndex++;
             }
+            if (isset($meta->getForUpdateHelper) && !isset($helpers[$meta->getForUpdateHelper])) {
+                $helpers[$meta->getForUpdateHelper] = 'helper'.$helperIndex++;
+            }
             if (isset($meta->setHelper) && !isset($helpers[$meta->setHelper])) {
                 $helpers[$meta->setHelper] = 'helper'.$helperIndex++;
             }
@@ -120,6 +123,9 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             $inverses[$meta] = $inverseMeta;
             if (isset($inverseMeta->getHelper) && !isset($helpers[$inverseMeta->getHelper])) {
                 $helpers[$inverseMeta->getHelper] = 'helper'.$helperIndex++;
+            }
+            if (isset($inverseMeta->getForUpdateHelper) && !isset($helpers[$inverseMeta->getForUpdateHelper])) {
+                $helpers[$inverseMeta->getForUpdateHelper] = 'helper'.$helperIndex++;
             }
             if (isset($inverseMeta->setHelper) && !isset($helpers[$inverseMeta->setHelper])) {
                 $helpers[$inverseMeta->setHelper] = 'helper'.$helperIndex++;
@@ -241,7 +247,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             if (!isset($meta->getTemplate)) {
                 continue;
             }
-            $expression = $this->generateGet($meta, $helpers, '$object');
+            $expression = self::generateGet($meta, $helpers, '$object');
             $fd
                 ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
                 ->indent()
@@ -372,7 +378,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             if (!isset($meta->getTemplate)) {
                 continue;
             }
-            $expression = $this->generateGet($meta, $helpers, '$object');
+            $expression = self::generateGet($meta, $helpers, '$object');
             $fd
                 ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
                 ->indent()
@@ -502,10 +508,10 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             /** @var NormalizableProperty|null $inverseMeta */
             $inverseMeta = $inverses[$meta];
             if (self::isCollectionObject($primaryType)) {
-                if (!isset($meta->getTemplate)) {
+                if (!isset($meta->getTemplate) && !isset($meta->getForUpdateTemplate)) {
                     continue;
                 }
-                $expression = $this->generateGet($meta, $helpers, '$object');
+                $expression = self::generateGetForUpdate($meta, $helpers, '$object');
                 $fd
                     ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
                     ->indent()
@@ -532,8 +538,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 } else {
                     $expression = \sprintf('$data[%s]', \var_export($property, true));
                 }
-                $assignment = $this->generateSet($meta, $helpers, '$object', $expression);
-                $oldExpression = $this->generateGet($meta, $helpers, '$object');
+                $assignment = self::generateSet($meta, $helpers, '$object', $expression);
+                $oldExpression = self::generateGet($meta, $helpers, '$object');
                 $inverseRemove = self::generateRemove($inverseMeta, $helpers, '$previousValue');
                 if (null !== $oldExpression && (null !== $inverseRemove || $meta->autoPersist || $meta->autoRemove)) {
                     $fd
@@ -948,8 +954,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
     private static function emitRemoveFromORM(StreamWriter $fd, NormalizableProperty $inverseMeta, array $helpers, string $previousValue): void
     {
         if (self::isCollectionObject($inverseMeta->type)) {
-            if (isset($inverseMeta->getTemplate)) {
-                $inverseExpression = self::generateGet($inverseMeta, $helpers, $previousValue);
+            if (isset($inverseMeta->getTemplate) || isset($inverseMeta->getForUpdateTemplate)) {
+                $inverseExpression = self::generateGetForUpdate($inverseMeta, $helpers, $previousValue);
                 $fd
                     ->printfln('if (0 === \\count(%s)) {', $inverseExpression)
                     ->indent()
@@ -982,8 +988,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         $add = null;
         $remove = null;
         if (self::isCollectionObject($meta->type)) {
-            if (isset($meta->getTemplate)) {
-                $inverseExpression = self::generateGet($meta, $helpers, $old);
+            if (isset($meta->getTemplate) || isset($meta->getForUpdateTemplate)) {
+                $inverseExpression = self::generateGetForUpdate($meta, $helpers, $old);
                 $remove = \sprintf('%s->removeElement($object);', $inverseExpression);
             }
         } elseif (null === $meta->type || $meta->type->isNullable()) {
@@ -1002,6 +1008,15 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 ? \sprintf($meta->getTemplate, $object, '$this->'.$helpers[$meta->getHelper])
                 : \sprintf($meta->getTemplate, $object))
             : null;
+    }
+
+    private static function generateGetForUpdate(NormalizableProperty $meta, array $helpers, string $object): ?string
+    {
+        return isset($meta->getForUpdateTemplate)
+            ? (isset($meta->getForUpdateHelper)
+                ? \sprintf($meta->getForUpdateTemplate, $object, '$this->'.$helpers[$meta->getForUpdateHelper])
+                : \sprintf($meta->getForUpdateTemplate, $object))
+            : self::generateGet($meta, $helpers, $object);
     }
 
     private static function generateSet(NormalizableProperty $meta, array $helpers, string $object, string $value): ?string

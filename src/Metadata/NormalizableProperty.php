@@ -58,6 +58,12 @@ class NormalizableProperty
     public $getHelper = null;
 
     /** @var string|null */
+    public $getForUpdateTemplate = null;
+
+    /** @var string|null */
+    public $getForUpdateHelper = null;
+
+    /** @var string|null */
     public $setTemplate = null;
 
     /** @var string|null */
