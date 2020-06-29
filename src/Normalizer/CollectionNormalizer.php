@@ -26,7 +26,8 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormalizerInterface, NormalizerAwareInterface, DenormalizerAwareInterface, CacheableSupportsMethodInterface
 {
-    use NormalizerAwareTrait, DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use DenormalizerAwareTrait;
 
     /** @var ManagerRegistry */
     private $doctrine;

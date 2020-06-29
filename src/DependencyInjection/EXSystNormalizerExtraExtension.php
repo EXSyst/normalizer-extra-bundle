@@ -33,11 +33,15 @@ class EXSystNormalizerExtraExtension extends Extension
         $config = $processor->processConfiguration($configuration, $configs);
 
         $container->setParameter('exsyst_normalizer_extra.implicit_breadth_first', $config['options']['implicit_breadth_first']);
+        $container->setParameter('exsyst_normalizer_extra.default_context', ($config['options']['default_context'] ?? []) + [
+            'json_decode_associative' => true,
+            'yaml_inline'             => 2,
+        ]);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yaml');
-        if ($config['features']['json_request_parser']) {
-            $loader->load('services_json_request_parser.yaml');
+        if ($config['features']['request_decoder']) {
+            $loader->load('services_request_decoder.yaml');
         }
         if ($config['features']['response_shape_header']) {
             $loader->load('services_response_shape_header.yaml');

@@ -13,30 +13,16 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 
 interface NormalizableMetadataProviderInterface
 {
-    /**
-     * @param string $className
-     *
-     * @return ClassFactory|null
-     */
     public function getFactory(string $className): ?ClassFactory;
 
-    /**
-     * @param string $className
-     *
-     * @return GroupsSecurity|null
-     */
     public function getGroupsSecurity(string $className): ?GroupsSecurity;
 
     /**
-     * @param string $className
-     *
      * @return string[]|null
      */
     public function getGroupsInitializers(string $className): ?array;
 
     /**
-     * @param string $className
-     *
      * @return NormalizableProperty[]
      */
     public function getNormalizableProperties(string $className): array;

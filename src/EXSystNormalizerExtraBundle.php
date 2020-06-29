@@ -19,9 +19,6 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class EXSystNormalizerExtraBundle extends Bundle
 {
-    /**
-     * @param \Symfony\Component\DependencyInjection\ContainerBuilder $container
-     */
     public function build(ContainerBuilder $container)
     {
         $container->registerForAutoconfiguration(NormalizableMetadataProviderInterface::class)

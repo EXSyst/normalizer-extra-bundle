@@ -1,5 +1,7 @@
 services:
-  EXSyst\NormalizerExtraBundle\Listener\JsonRequestListener:
+  EXSyst\NormalizerExtraBundle\Listener\RequestDecoderListener:
+    arguments:
+      $context: '%exsyst_normalizer_extra.default_context%'
     autowire: true
     autoconfigure: true
     public: false

@@ -1,10 +1,11 @@
 services:
-  exsyst_normalizer_extra.json_header_listener.response_shape:
-    class: EXSyst\NormalizerExtraBundle\Listener\JsonHeaderListener
+  exsyst_normalizer_extra.header_decoder_listener.response_shape:
+    class: EXSyst\NormalizerExtraBundle\Listener\HeaderDecoderListener
     arguments:
       $headerName: Response-Shape
       $attributeName: shape
       $allowFromQuery: '%kernel.debug%'
+      $context: '%exsyst_normalizer_extra.default_context%'
     autowire: true
     autoconfigure: true
     public: false

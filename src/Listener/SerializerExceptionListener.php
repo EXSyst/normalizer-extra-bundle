@@ -11,6 +11,7 @@
 
 namespace EXSyst\NormalizerExtraBundle\Listener;
 
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -22,9 +23,15 @@ class SerializerExceptionListener
     /** @var SerializerInterface */
     private $serializer;
 
-    public function __construct(SerializerInterface $serializer)
+    /** @var array */
+    private $context;
+
+    public function __construct(SerializerInterface $serializer, array $context = [])
     {
         $this->serializer = $serializer;
+        $this->context = $context + [
+            'shape' => ['code' => null, 'message' => null],
+        ];
     }
 
     public function onKernelException(GetResponseForExceptionEvent $event): void
@@ -41,14 +48,17 @@ class SerializerExceptionListener
         $request = $event->getRequest();
         $format = $request->getRequestFormat('json');
         try {
-            $serialized = $this->serializer->serialize($exception, $format, [
-                'shape' => ['code' => null, 'message' => null],
-            ]);
+            $serialized = $this->serializer->serialize($exception, $format, $this->getContext($request) + $this->context);
         } catch (NotEncodableValueException $e) {
             return;
         }
 
         $response = new Response($serialized, $exception->getStatusCode(), $exception->getHeaders());
         $event->setResponse($response);
+    }
+
+    protected function getContext(Request $request): array
+    {
+        return [];
     }
 }

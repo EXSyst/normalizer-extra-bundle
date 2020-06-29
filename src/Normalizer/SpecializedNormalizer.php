@@ -22,7 +22,8 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 abstract class SpecializedNormalizer implements NormalizerAwareInterface, DenormalizerAwareInterface, NormalizerInterface, DenormalizerInterface
 {
-    use NormalizerAwareTrait, DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use DenormalizerAwareTrait;
 
     /** @var array */
     protected $attributes;

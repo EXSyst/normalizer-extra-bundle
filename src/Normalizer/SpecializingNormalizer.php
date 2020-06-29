@@ -27,7 +27,8 @@ use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 
 class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterface, NormalizerAwareInterface, DenormalizerAwareInterface, CacheableSupportsMethodInterface
 {
-    use NormalizerAwareTrait, DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use DenormalizerAwareTrait;
 
     /** @var SpecializedNormalizerCompiler */
     private $specializedNormalizerCompiler;
