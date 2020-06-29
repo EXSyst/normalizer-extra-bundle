@@ -16,19 +16,25 @@ The only features that are enabled by default are the ones that :
 exsyst_normalizer_extra:
   features:
     # Makes $request->request able to access the request body in the
-    # Content-Type: application/json case. Enabled by default.
-    json_request_parser: true
+    # Content-Type: application/json, application/xml, application/x-yaml,
+    # text/csv cases and/or others depending on serializer support.
+    # Enabled by default.
+    request_decoder: true
 
     # Parses a JSON document in a header named "Response-Shape",
-    # into a request attribute named "shape". Enabled by default.
+    # into a request attribute named "shape", used so that the client
+    # can filter out unneeded fields.
+    # Enabled by default.
     response_shape_header: true
 
     # Allows a controller to return an object or null and have it
-    # automatically turned into a Response. Disabled by default.
+    # automatically turned into a Response.
+    # Disabled by default.
     serializer_view_listener: false
 
     # Allows a controller to throw a HttpException and have it
-    # automatically turned into a Response. Disabled by default.
+    # automatically turned into a Response.
+    # Disabled by default.
     serializer_exception_listener: false
 
   normalizers:
@@ -38,18 +44,26 @@ exsyst_normalizer_extra:
     collection: false
 
     # A meta-normalizer that can generate fast normalizers for most
-    # classes, and delegate to them. Disabled by default.
+    # classes, and delegate to them.
+    # Disabled by default.
     specializing: false
   options:
     # Always use a breadth-first normalization algorithm, that can
     # optimize initialization operations by batching them.
-    # Some normalizers may be incompatible. Disabled by default.
+    # Some normalizers may be incompatible.
+    # Disabled by default.
     implicit_breadth_first: false
 
     # Automatically provides metadata consumers with information
     # obtained by using Symfony's PropertyInfo component and serializer
-    # metadata, Doctrine's mappings, and annotations. Enabled by default.
+    # metadata, Doctrine's mappings, and annotations.
+    # Enabled by default.
     auto_metadata: true
+
+    # Parameters to use in the (de)serialization context of the services
+    # defined by enabling the above features.
+    # Null by default, which is treated the same as an empty mapping.
+    default_context: ~
   unsafe_features:
     # Optimizes Doctrine collection initializations by batching them.
     # Disabled by default.
