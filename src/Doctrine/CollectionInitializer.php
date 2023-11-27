@@ -27,7 +27,7 @@ class CollectionInitializer extends DoctrineInitializer
     }
 
     /** {@inheritdoc} */
-    public function collect(object $object): bool
+    public function collect($object): bool
     {
         if (!($object instanceof PersistentCollection)) {
             return false;

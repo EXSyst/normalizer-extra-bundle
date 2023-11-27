@@ -36,13 +36,13 @@ abstract class DoctrineInitializer implements InitializerInterface
     }
 
     /** {@inheritdoc} */
-    abstract public function collect(object $object): bool;
+    abstract public function collect($object): bool;
 
     /** {@inheritdoc} */
     abstract public function process(): void;
 
     /** {@inheritdoc} */
-    public function initialize(object $object): void
+    public function initialize($object): void
     {
         if ($this->collect($object)) {
             $this->process();
