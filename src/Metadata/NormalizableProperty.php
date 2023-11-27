@@ -15,59 +15,27 @@ use Symfony\Component\PropertyInfo\Type;
 
 class NormalizableProperty
 {
-    /** @var string */
-    public $name;
-
-    /** @var string|null */
-    public $originalName = null;
+    public string $name;
+    public ?string $originalName = null;
 
     /** @var string[] */
-    public $groups = [];
+    public array $groups = [];
 
-    /** @var bool */
-    public $alwaysNormalize = false;
-
-    /** @var Type|null */
-    public $type = null;
-
-    /** @var string|null */
-    public $indexBySubProperty = null;
-
-    /** @var string|null */
-    public $inlineSubProperty = null;
-
-    /** @var string|null */
-    public $inverseSubProperty = null;
-
-    /** @var bool */
-    public $autoPersist = false;
-
-    /** @var bool */
-    public $autoRemove = false;
-
-    /** @var array|null */
-    public $readGroups = null;
-
-    /** @var array|null */
-    public $writeGroups = null;
-
-    /** @var string|null */
-    public $getTemplate = null;
-
-    /** @var string|null */
-    public $getHelper = null;
-
-    /** @var string|null */
-    public $getForUpdateTemplate = null;
-
-    /** @var string|null */
-    public $getForUpdateHelper = null;
-
-    /** @var string|null */
-    public $setTemplate = null;
-
-    /** @var string|null */
-    public $setHelper = null;
+    public bool $alwaysNormalize = false;
+    public ?Type $type = null;
+    public ?string $indexBySubProperty = null;
+    public ?string $inlineSubProperty = null;
+    public ?string $inverseSubProperty = null;
+    public bool $autoPersist = false;
+    public bool $autoRemove = false;
+    public ?array $readGroups = null;
+    public ?array $writeGroups = null;
+    public ?string $getTemplate = null;
+    public ?string $getHelper = null;
+    public ?string $getForUpdateTemplate = null;
+    public ?string $getForUpdateHelper = null;
+    public ?string $setTemplate = null;
+    public ?string $setHelper = null;
 
     public function __construct(string $name)
     {

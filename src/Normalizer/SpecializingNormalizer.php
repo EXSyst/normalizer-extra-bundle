@@ -30,24 +30,18 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    /** @var SpecializedNormalizerCompiler */
-    private $specializedNormalizerCompiler;
+    private SpecializedNormalizerCompiler $specializedNormalizerCompiler;
+    private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver;
+    private ?EntityInitializer $initializer;
 
-    /** @var ClassDiscriminatorResolverInterface|null */
-    private $classDiscriminatorResolver;
-
-    /** @var EntityInitializer|null */
-    private $initializer;
-
-    /** @var SpecializedNormalizer|] */
-    private $specializedNormalizers;
+    /** @var SpecializedNormalizer[] */
+    private array $specializedNormalizers = [];
 
     public function __construct(SpecializedNormalizerCompiler $specializedNormalizerCompiler, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?EntityInitializer $initializer)
     {
         $this->specializedNormalizerCompiler = $specializedNormalizerCompiler;
         $this->classDiscriminatorResolver = $classDiscriminatorResolver;
         $this->initializer = $initializer;
-        $this->specializedNormalizers = [];
     }
 
     /** {@inheritdoc} */

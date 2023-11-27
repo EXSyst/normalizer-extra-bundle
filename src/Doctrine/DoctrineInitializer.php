@@ -11,55 +11,51 @@
 
 namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
-use Doctrine\Common\Persistence\ManagerRegistry;
-use Doctrine\Common\Persistence\Mapping\ClassMetadata;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\Mapping\ClassMetadata;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Proxy\Proxy;
 use EXSyst\NormalizerExtraBundle\Initializer\InitializerInterface;
 
 abstract class DoctrineInitializer implements InitializerInterface
 {
-    /** @var ManagerRegistry */
-    protected $doctrine;
+    protected ManagerRegistry $doctrine;
 
     /** @var ClassMetadata[] */
-    protected $metadata;
+    protected array $metadata = [];
 
     /** @var string[] */
-    protected $templates;
+    protected array $templates = [];
 
     /** @var object[] */
-    protected $objects;
+    protected array $objects = [];
 
     public function __construct(ManagerRegistry $doctrine)
     {
         $this->doctrine = $doctrine;
-        $this->metadata = [];
-        $this->templates = [];
-        $this->objects = [];
     }
 
     /** {@inheritdoc} */
-    abstract public function collect($object): bool;
+    abstract public function collect(object $object): bool;
 
     /** {@inheritdoc} */
     abstract public function process(): void;
 
     /** {@inheritdoc} */
-    public function initialize($object): void
+    public function initialize(object $object): void
     {
         if ($this->collect($object)) {
             $this->process();
         }
     }
 
-    protected static function getClass($object): string
+    protected static function getClass(object $object): string
     {
         return ($object instanceof Proxy) ? \get_parent_class($object) : \get_class($object);
     }
 
     /** @internal */
-    public function getIdentifier($object)
+    public function getIdentifier(object $object)
     {
         $class = self::getClass($object);
         $identifier = \array_values($this->getClassMetadata($class)->getIdentifierValues($object));

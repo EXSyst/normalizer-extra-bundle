@@ -19,12 +19,7 @@ use Doctrine\Common\Annotations\Annotation\Target;
  */
 class Factory
 {
-    /** @var string */
-    public $service = null;
-
-    /** @var string */
-    public $class = null;
-
-    /** @var string */
-    public $method;
+    public ?string $service = null;
+    public ?string $class = null;
+    public string $method = '__invoke';
 }

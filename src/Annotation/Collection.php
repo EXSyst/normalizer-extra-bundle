@@ -22,6 +22,6 @@ use Doctrine\Common\Annotations\Annotation\Target;
  */
 class Collection
 {
-    /** @var string property of the elements to use as keys instead of their position, can be a property merged by inline */
-    public $indexBy = null;
+    /** @var string|null property of the elements to use as keys instead of their position, can be a property merged by inline */
+    public ?string $indexBy = null;
 }

@@ -13,7 +13,7 @@ namespace EXSyst\NormalizerExtraBundle\Normalizer;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ManagerRegistry;
 use EXSyst\NormalizerExtraBundle\Compatibility\CacheableSupportsMethodInterface;
 use EXSyst\NormalizerExtraBundle\Doctrine\CollectionInitializer;
 use EXSyst\NormalizerExtraBundle\Doctrine\FlushProofUpdater;
@@ -29,11 +29,8 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    /** @var ManagerRegistry */
-    private $doctrine;
-
-    /** @var CollectionInitializer|null */
-    private $initializer;
+    private ManagerRegistry $doctrine;
+    private ?CollectionInitializer $initializer;
 
     public function __construct(ManagerRegistry $doctrine, ?CollectionInitializer $initializer)
     {

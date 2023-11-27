@@ -23,14 +23,9 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class SerializerViewListener
 {
-    /** @var SerializerInterface */
-    private $serializer;
-
-    /** @var array */
-    private $context;
-
-    /** @var \SplObjectStorage */
-    private $controllers;
+    private SerializerInterface $serializer;
+    private array $context;
+    private \SplObjectStorage $controllers;
 
     public function __construct(SerializerInterface $serializer, array $context = [])
     {

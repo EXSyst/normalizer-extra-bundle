@@ -14,8 +14,8 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 class GroupsSecurity
 {
     /** @var string[] */
-    public $readAttributes = [];
+    public array $readAttributes = [];
 
     /** @var string[] */
-    public $writeAttributes = [];
+    public array $writeAttributes = [];
 }

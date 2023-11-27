@@ -13,7 +13,7 @@ namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\Persistence\ObjectManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\Proxy\Proxy;
@@ -21,11 +21,8 @@ use Doctrine\ORM\UnitOfWork;
 
 class FlushProofUpdater
 {
-    /** @var ObjectManager */
-    private $objectManager;
-
-    /** @var UnitOfWork|null */
-    private $flushingUnitOfWork;
+    private ObjectManager $objectManager;
+    private ?UnitOfWork $flushingUnitOfWork;
 
     public function __construct(ObjectManager $objectManager, bool $flushing = false)
     {

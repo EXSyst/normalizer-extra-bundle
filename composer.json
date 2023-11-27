@@ -11,12 +11,12 @@
     }
   ],
   "require": {
-    "php": "^7.1.3",
-    "symfony/serializer": "~3.4|~4.0",
-    "symfony/dependency-injection": "~3.4|~4.0",
-    "symfony/http-foundation": "~3.4|~4.0",
-    "symfony/property-info": "~3.4|~4.0",
-    "doctrine/orm": "~2.6|dev-2.6-exsyst",
+    "php": "^7.4.7",
+    "symfony/serializer": "~3.4|~4.0|~5.0",
+    "symfony/dependency-injection": "~3.4|~4.0|~5.0",
+    "symfony/http-foundation": "~3.4|~4.0|~5.0",
+    "symfony/property-info": "~3.4|~4.0|~5.0",
+    "doctrine/orm": "~2.6|dev-2.6-exsyst|dev-2.17-exsyst",
     "doctrine/annotations": "~1.0",
     "exsyst/dynamic-class-generation-bundle": "0.1.*",
     "exsyst/mini-enum": "~1.0"

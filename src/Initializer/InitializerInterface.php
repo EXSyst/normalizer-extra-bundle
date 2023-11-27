@@ -13,15 +13,9 @@ namespace EXSyst\NormalizerExtraBundle\Initializer;
 
 interface InitializerInterface
 {
-    /**
-     * @param object $object
-     */
-    public function collect($object): bool;
+    public function collect(object $object): bool;
 
     public function process(): void;
 
-    /**
-     * @param object $object
-     */
-    public function initialize($object): void;
+    public function initialize(object $object): void;
 }

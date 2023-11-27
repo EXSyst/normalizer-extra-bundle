@@ -20,11 +20,8 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class SerializerExceptionListener
 {
-    /** @var SerializerInterface */
-    private $serializer;
-
-    /** @var array */
-    private $context;
+    private SerializerInterface $serializer;
+    private array $context;
 
     public function __construct(SerializerInterface $serializer, array $context = [])
     {

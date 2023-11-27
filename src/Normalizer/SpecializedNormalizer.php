@@ -11,7 +11,7 @@
 
 namespace EXSyst\NormalizerExtraBundle\Normalizer;
 
-use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
@@ -25,17 +25,13 @@ abstract class SpecializedNormalizer implements NormalizerAwareInterface, Denorm
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    /** @var array */
-    protected $attributes;
+    protected array $attributes;
 
     /** @var array[] */
-    protected $groupsAttributes;
+    protected array $groupsAttributes;
 
-    /** @var ManagerRegistry */
-    protected $doctrine;
-
-    /** @var AuthorizationCheckerInterface|null */
-    protected $authorizationChecker;
+    protected ManagerRegistry $doctrine;
+    protected ?AuthorizationCheckerInterface $authorizationChecker;
 
     protected function getReadAttributeSet(array $context): array
     {

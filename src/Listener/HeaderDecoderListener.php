@@ -18,28 +18,15 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 class HeaderDecoderListener
 {
     /** @var string[] */
-    private $headerNames;
+    private array $headerNames;
 
-    /** @var string */
-    private $attributeName;
-
-    /** @var bool */
-    private $allowFromQuery;
-
-    /** @var DecoderInterface */
-    private $decoder;
-
-    /** @var DenormalizerInterface|null */
-    private $denormalizer;
-
-    /** @var string|null */
-    private $class;
-
-    /** @var string */
-    private $format;
-
-    /** @var array */
-    private $context;
+    private string $attributeName;
+    private bool $allowFromQuery;
+    private DecoderInterface $decoder;
+    private ?DenormalizerInterface $denormalizer;
+    private ?string $class;
+    private string $format;
+    private array $context;
 
     public function __construct(string $headerName, string $attributeName, bool $allowFromQuery, DecoderInterface $decoder, ?DenormalizerInterface $denormalizer = null, ?string $class = null, string $format = 'json', array $context = [], string ...$altHeaderNames)
     {

@@ -13,12 +13,7 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 
 class ClassFactory
 {
-    /** @var string|null */
-    public $service = null;
-
-    /** @var string|null */
-    public $class = null;
-
-    /** @var string */
-    public $method;
+    public ?string $service = null;
+    public ?string $class = null;
+    public string $method = '__invoke';
 }

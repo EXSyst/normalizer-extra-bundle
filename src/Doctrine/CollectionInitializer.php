@@ -11,15 +11,14 @@
 
 namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
-use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\Proxy\Proxy;
 
 class CollectionInitializer extends DoctrineInitializer
 {
-    /** @var EntityInitializer */
-    private $entityInitializer;
+    private ?EntityInitializer $entityInitializer;
 
     public function __construct(ManagerRegistry $doctrine, ?EntityInitializer $entityInitializer)
     {
@@ -28,7 +27,7 @@ class CollectionInitializer extends DoctrineInitializer
     }
 
     /** {@inheritdoc} */
-    public function collect($object): bool
+    public function collect(object $object): bool
     {
         if (!($object instanceof PersistentCollection)) {
             return false;

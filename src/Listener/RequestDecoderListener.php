@@ -16,11 +16,8 @@ use Symfony\Component\Serializer\Encoder\DecoderInterface;
 
 class RequestDecoderListener
 {
-    /** @var DecoderInterface */
-    private $decoder;
-
-    /** @var array */
-    private $context;
+    private DecoderInterface $decoder;
+    private array $context;
 
     public function __construct(DecoderInterface $decoder, array $context = [])
     {

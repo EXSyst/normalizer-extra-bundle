@@ -17,7 +17,7 @@ use Doctrine\ORM\Proxy\Proxy;
 class EntityInitializer extends DoctrineInitializer
 {
     /** {@inheritdoc} */
-    public function collect($object): bool
+    public function collect(object $object): bool
     {
         if (!($object instanceof Proxy)) {
             return false;

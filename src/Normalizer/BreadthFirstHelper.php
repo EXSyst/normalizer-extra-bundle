@@ -24,10 +24,10 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     private $root;
 
     /** @var InitializerInterface[] */
-    private $initializers;
+    private array $initializers = [];
 
     /** @var array[] */
-    private $queue;
+    private array $queue = [];
 
     /** @var mixed */
     private $currentBindPoint;
@@ -38,8 +38,6 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     public function __construct($root = null)
     {
         $this->root = $root;
-        $this->initializers = [];
-        $this->queue = [];
     }
 
     public function getRoot()

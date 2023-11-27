@@ -20,5 +20,5 @@ use Doctrine\Common\Annotations\Annotation\Target;
 class GroupsInitializers
 {
     /** @var string[] */
-    public $value;
+    public array $value = [];
 }

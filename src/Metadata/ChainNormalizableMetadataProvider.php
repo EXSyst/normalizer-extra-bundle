@@ -14,7 +14,7 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 class ChainNormalizableMetadataProvider implements NormalizableMetadataProviderInterface
 {
     /** @var NormalizableMetadataProviderInterface[] */
-    private $providers;
+    private array $providers;
 
     public function __construct(array $providers)
     {

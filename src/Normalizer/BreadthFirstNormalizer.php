@@ -19,8 +19,7 @@ class BreadthFirstNormalizer implements ContextAwareNormalizerInterface, Normali
 {
     use NormalizerAwareTrait;
 
-    /** @var bool */
-    private $implicit;
+    private bool $implicit;
 
     public function __construct(bool $implicit)
     {

@@ -11,7 +11,7 @@
 
 namespace EXSyst\NormalizerExtraBundle\Compiler;
 
-use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use EXSyst\DynamicClassGenerationBundle\Compiler\ClassGeneratorInterface;
 use EXSyst\DynamicClassGenerationBundle\Compiler\ResolvedClassInfo;
@@ -33,17 +33,10 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
     private const PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
     private const SUFFIX = 'Normalizer';
 
-    /** @var NormalizableMetadataProviderInterface */
-    private $metadataProvider;
-
-    /** @var ManagerRegistry */
-    private $doctrine;
-
-    /** @var AuthorizationCheckerInterface|null */
-    private $authorizationChecker;
-
-    /** @var ContainerInterface */
-    private $container;
+    private NormalizableMetadataProviderInterface $metadataProvider;
+    private ManagerRegistry $doctrine;
+    private ?AuthorizationCheckerInterface $authorizationChecker;
+    private ContainerInterface $container;
 
     public function __construct(NormalizableMetadataProviderInterface $metadataProvider, ManagerRegistry $doctrine, ?AuthorizationCheckerInterface $authorizationChecker, ContainerInterface $container)
     {
@@ -754,7 +747,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         ;
         if (null !== $factory) {
             $reflClass = new \ReflectionClass(isset($factory->service) ? $this->container->get($factory->service) : ($factory->class ?? $className));
-            $reflConstructor = $reflClass->getMethod($factory->method ?? '__invoke');
+            $reflConstructor = $reflClass->getMethod($factory->method);
         } else {
             $reflClass = new \ReflectionClass($className);
             $reflConstructor = ($reflClass->isInterface() || $reflClass->isAbstract()) ? null : $reflClass->getConstructor();
@@ -836,7 +829,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                         }
                     }
                 }
-                $fd->printfln('$object = %s(%s);', (null !== $factory) ? (isset($factory->service) ? \sprintf('$this->%s->%s', $helpers[$factory->service], $factory->method ?? '__invoke') : \sprintf('\\%s::%s', $factory->class ?? $className, $factory->method ?? '__invoke')) : 'new T', implode(', ', $args));
+                $fd->printfln('$object = %s(%s);', (null !== $factory) ? (isset($factory->service) ? \sprintf('$this->%s->%s', $helpers[$factory->service], $factory->method) : \sprintf('\\%s::%s', $factory->class ?? $className, $factory->method)) : 'new T', implode(', ', $args));
                 foreach ($parameters as $i => $parameter) {
                     $property = $propertiesByOriginalName[$parameter->name] ?? null;
                     if (null !== $property) {

@@ -12,8 +12,8 @@
 namespace EXSyst\NormalizerExtraBundle\Metadata;
 
 use Doctrine\Common\Annotations\Reader;
-use Doctrine\Common\Persistence\ManagerRegistry;
-use Doctrine\Common\Persistence\Mapping\ClassMetadata;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\Mapping\ClassMetadata;
 use EXSyst\NormalizerExtraBundle\Annotation\Association;
 use EXSyst\NormalizerExtraBundle\Annotation\Collection;
 use EXSyst\NormalizerExtraBundle\Annotation\Factory;
@@ -30,23 +30,12 @@ use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
 class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderInterface
 {
-    /** @var PropertyInfoExtractorInterface */
-    private $propertyInfoExtractor;
-
-    /** @var ClassMetadataFactoryInterface */
-    private $classMetadataFactory;
-
-    /** @var ClassDiscriminatorResolverInterface */
-    private $classDiscriminatorResolver;
-
-    /** @var NameConverterInterface|null */
-    private $nameConverter;
-
-    /** @var ManagerRegistry|null */
-    private $doctrine;
-
-    /** @var Reader */
-    private $annotationReader;
+    private PropertyInfoExtractorInterface $propertyInfoExtractor;
+    private ClassMetadataFactoryInterface $classMetadataFactory;
+    private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver;
+    private ?NameConverterInterface $nameConverter;
+    private ?ManagerRegistry $doctrine;
+    private Reader $annotationReader;
 
     public function __construct(PropertyInfoExtractorInterface $propertyInfoExtractor, ClassMetadataFactoryInterface $classMetadataFactory, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?NameConverterInterface $nameConverter, ?ManagerRegistry $doctrine, Reader $annotationReader)
     {
@@ -115,7 +104,7 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         /** @var GroupsInitializers|null $initializersAnnotation */
         $initializersAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsInitializers::class);
 
-        return (null !== $initializersAnnotation && null !== $initializersAnnotation->value) ? ($initializersAnnotation->value + ($parent ?? [])) : $parent;
+        return (null !== $initializersAnnotation) ? ($initializersAnnotation->value + ($parent ?? [])) : $parent;
     }
 
     /** {@inheritdoc} */

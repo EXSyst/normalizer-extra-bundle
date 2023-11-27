@@ -16,21 +16,15 @@ class ResponseData
     /** @var mixed */
     private $content;
 
-    /** @var int */
-    private $status;
-
-    /** @var array */
-    private $headers;
-
-    /** @var array */
-    private $context;
+    private int $status;
+    private array $headers;
+    private array $context = [];
 
     public function __construct($content, int $status = 200, array $headers = [])
     {
         $this->content = $content;
         $this->status = $status;
         $this->headers = $headers;
-        $this->context = [];
     }
 
     public static function create($content, int $status = 200, array $headers = []): self
