@@ -92,9 +92,9 @@ class CollectionInitializer extends DoctrineInitializer
                     // We just run the query without using its result.
                     // Doctrine will automatically connect the dots between our query's results and our uninitialized collections.
                     if (\is_array($identities[0])) {
-                        $this->runCompositeKeyBatchLoadQuery($manager, $class, \sprintf('SELECT PARTIAL e.{%s}, t FROM %s e LEFT JOIN e.%s t WHERE ', \implode(', ', $metadata->getIdentifierFieldNames()), $class, $field), $identities);
+                        $this->runCompositeKeyBatchLoadQuery($manager, $class, \sprintf('SELECT PARTIAL e.{%s}, t FROM %s e JOIN e.%s t WHERE ', \implode(', ', $metadata->getIdentifierFieldNames()), $class, $field), $identities);
                     } else {
-                        $manager->createQuery(\sprintf('SELECT PARTIAL e.{%3$s}, t FROM %s e LEFT JOIN e.%s t WHERE e.%s IN (:ids)', $class, $field, $metadata->getIdentifierFieldNames()[0]))
+                        $manager->createQuery(\sprintf('SELECT PARTIAL e.{%3$s}, t FROM %s e JOIN e.%s t WHERE e.%s IN (:ids)', $class, $field, $metadata->getIdentifierFieldNames()[0]))
                             ->setParameter('ids', $identities)
                             ->getResult();
                     }
