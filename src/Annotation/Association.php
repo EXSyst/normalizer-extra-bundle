@@ -21,27 +21,27 @@ use Doctrine\Common\Annotations\Annotation\Target;
  */
 class Association
 {
-    /** @var string|null the target class of the association */
+    /** @var string the target class of the association */
     public ?string $target = null;
 
-    /** @var string|null the property of the target class that refers back to the current class */
+    /** @var string the property of the target class that refers back to the current class */
     public ?string $inversedBy = null;
 
-    /** @var bool|null whether this property is a collection of the target class (omit to determine automatically) */
+    /** @var bool whether this property is a collection of the target class (omit to determine automatically) */
     public ?bool $toMany = null;
 
-    /** @var string|null property of the target object (or its elements) to merge into the elements themselves */
+    /** @var string property of the target object (or its elements) to merge into the elements themselves */
     public ?string $inline = null;
 
     /** @var bool whether to automatically persist added elements in the ORM */
     public bool $autoPersist = false;
 
-    /** @var bool|null whether to automatically remove removed elements from the ORM, omit to use the same value as autoPersist */
+    /** @var bool whether to automatically remove removed elements from the ORM, omit to use the same value as autoPersist */
     public ?bool $autoRemove = null;
 
-    /** @var array|null groups to normalize in the elements (unless shape and allowed_groups are defined in the context), omit to inherit from the current object */
+    /** @var array groups to normalize in the elements (unless shape and allowed_groups are defined in the context), omit to inherit from the current object */
     public ?array $readGroups = null;
 
-    /** @var array|null groups to denormalize in the elements, omit to inherit from the current object */
+    /** @var array groups to denormalize in the elements, omit to inherit from the current object */
     public ?array $writeGroups = null;
 }
