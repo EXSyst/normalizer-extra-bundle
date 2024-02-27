@@ -16,22 +16,22 @@ use EXSyst\MiniEnum\Enum;
 class CollectionOpCode extends Enum
 {
     /** @var int update common elements, don't add/remove anything from the target */
-    public const UPDATE = 0;
+    public const int UPDATE = 0;
 
     /** @var int update common elements, add elements present only in source, don't remove anything from the target */
-    public const ADD = 1;
+    public const int ADD = 1;
 
     /** @var int update common elements, remove elements present only in target, don't add anything to the target */
-    public const RETAIN = 2;
+    public const int RETAIN = 2;
 
     /** @var int update common elements, add elements present only in source, remove elements present only in target (full sync) */
-    public const SET = 3;
+    public const int SET = 3;
 
     /** @var int remove elements present in source, don't update anything */
-    public const REMOVE = 4;
+    public const int REMOVE = 4;
 
     /** @var int perform several operations */
-    public const MERGE = 5;
+    public const int MERGE = 5;
 
     public static function hasUpdate(int $opCode): bool
     {

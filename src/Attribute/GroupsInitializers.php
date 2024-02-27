@@ -9,16 +9,17 @@
  * file that was distributed with this source code.
  */
 
-namespace EXSyst\NormalizerExtraBundle\Annotation;
+namespace EXSyst\NormalizerExtraBundle\Attribute;
 
-use Doctrine\Common\Annotations\Annotation\Target;
-
-/**
- * @Annotation
- * @Target("CLASS")
- */
+#[\Attribute(\Attribute::TARGET_CLASS)]
 class GroupsInitializers
 {
-    /** @var string[] */
-    public array $value = [];
+    /**
+     * @param string[] $value
+     */
+    public function __construct(
+        public array $value = [],
+    )
+    {
+    }
 }

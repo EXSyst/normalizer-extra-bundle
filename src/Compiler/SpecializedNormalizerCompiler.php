@@ -30,8 +30,8 @@ use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 
 class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 {
-    private const PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
-    private const SUFFIX = 'Normalizer';
+    private const string PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
+    private const string SUFFIX = 'Normalizer';
 
     private NormalizableMetadataProviderInterface $metadataProvider;
     private ManagerRegistry $doctrine;

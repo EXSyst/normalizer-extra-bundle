@@ -9,19 +9,21 @@
  * file that was distributed with this source code.
  */
 
-namespace EXSyst\NormalizerExtraBundle\Annotation;
-
-use Doctrine\Common\Annotations\Annotation\Target;
+namespace EXSyst\NormalizerExtraBundle\Attribute;
 
 /**
  * Tells the normalizer to use a property of the target object's elements as keys, instead of their position.
  * The target object must be a collection.
- *
- * @Annotation
- * @Target({ "PROPERTY", "METHOD" })
  */
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD)]
 class Collection
 {
-    /** @var string property of the elements to use as keys instead of their position, can be a property merged by inline */
-    public ?string $indexBy = null;
+    /**
+     * @param string|null $indexBy property of the elements to use as keys instead of their position, can be a property merged by inline
+     */
+    public function __construct(
+        public ?string $indexBy = null,
+    )
+    {
+    }
 }

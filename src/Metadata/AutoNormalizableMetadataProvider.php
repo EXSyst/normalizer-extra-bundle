@@ -11,15 +11,14 @@
 
 namespace EXSyst\NormalizerExtraBundle\Metadata;
 
-use Doctrine\Common\Annotations\Reader;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
-use EXSyst\NormalizerExtraBundle\Annotation\Association;
-use EXSyst\NormalizerExtraBundle\Annotation\Collection;
-use EXSyst\NormalizerExtraBundle\Annotation\Factory;
-use EXSyst\NormalizerExtraBundle\Annotation\GroupsInitializers;
-use EXSyst\NormalizerExtraBundle\Annotation\GroupsReadSecurity;
-use EXSyst\NormalizerExtraBundle\Annotation\GroupsWriteSecurity;
+use EXSyst\NormalizerExtraBundle\Attribute\Association;
+use EXSyst\NormalizerExtraBundle\Attribute\Collection;
+use EXSyst\NormalizerExtraBundle\Attribute\Factory;
+use EXSyst\NormalizerExtraBundle\Attribute\GroupsInitializers;
+use EXSyst\NormalizerExtraBundle\Attribute\GroupsReadSecurity;
+use EXSyst\NormalizerExtraBundle\Attribute\GroupsWriteSecurity;
 use EXSyst\NormalizerExtraBundle\Reflection;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractorInterface;
 use Symfony\Component\PropertyInfo\Type;
@@ -35,33 +34,41 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
     private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver;
     private ?NameConverterInterface $nameConverter;
     private ?ManagerRegistry $doctrine;
-    private Reader $annotationReader;
 
-    public function __construct(PropertyInfoExtractorInterface $propertyInfoExtractor, ClassMetadataFactoryInterface $classMetadataFactory, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?NameConverterInterface $nameConverter, ?ManagerRegistry $doctrine, Reader $annotationReader)
+    public function __construct(PropertyInfoExtractorInterface $propertyInfoExtractor, ClassMetadataFactoryInterface $classMetadataFactory, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?NameConverterInterface $nameConverter, ?ManagerRegistry $doctrine)
     {
         $this->propertyInfoExtractor = $propertyInfoExtractor;
         $this->classMetadataFactory = $classMetadataFactory;
         $this->classDiscriminatorResolver = $classDiscriminatorResolver;
         $this->nameConverter = $nameConverter;
         $this->doctrine = $doctrine;
-        $this->annotationReader = $annotationReader;
+    }
+
+    /**
+     * @template T
+     * @param \ReflectionAttribute<T>[] $attributes
+     * @return T|null
+     */
+    private static function newInstanceOfFirst(array $attributes): ?object
+    {
+        return empty($attributes) ? null : \reset($attributes)->newInstance();
     }
 
     /** {@inheritdoc} */
     public function getFactory(string $className): ?ClassFactory
     {
         $reflClass = new \ReflectionClass($className);
-        /** @var Factory|null $factoryAnnotation */
-        $factoryAnnotation = $this->annotationReader->getClassAnnotation($reflClass, Factory::class);
+        /** @var Factory|null $factoryAttribute */
+        $factoryAttribute = self::newInstanceOfFirst($reflClass->getAttributes(Factory::class));
 
-        if (null === $factoryAnnotation) {
+        if (null === $factoryAttribute) {
             return null;
         }
 
         $factory = new ClassFactory();
-        $factory->service = $factoryAnnotation->service;
-        $factory->class = $factoryAnnotation->class;
-        $factory->method = $factoryAnnotation->method;
+        $factory->service = $factoryAttribute->service;
+        $factory->class = $factoryAttribute->class;
+        $factory->method = $factoryAttribute->method;
 
         return $factory;
     }
@@ -73,18 +80,18 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         $parent = (false !== $parentClass) ? $this->getGroupsSecurity($parentClass) : null;
 
         $reflClass = new \ReflectionClass($className);
-        /** @var GroupsReadSecurity|null $readAnnotation */
-        $readAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsReadSecurity::class);
-        /** @var GroupsWriteSecurity|null $writeAnnotation */
-        $writeAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsWriteSecurity::class);
+        /** @var GroupsReadSecurity|null $readAttribute */
+        $readAttribute = self::newInstanceOfFirst($reflClass->getAttributes(GroupsReadSecurity::class));
+        /** @var GroupsWriteSecurity|null $writeAttribute */
+        $writeAttribute = self::newInstanceOfFirst($reflClass->getAttributes(GroupsWriteSecurity::class));
 
-        if (null === $readAnnotation && null === $writeAnnotation) {
+        if (null === $readAttribute && null === $writeAttribute) {
             return $parent;
         }
 
         $security = new GroupsSecurity();
-        $security->readAttributes = (null === $readAnnotation) ? [] : $readAnnotation->value;
-        $security->writeAttributes = (null === $writeAnnotation) ? [] : $writeAnnotation->value;
+        $security->readAttributes = (null === $readAttribute) ? [] : $readAttribute->value;
+        $security->writeAttributes = (null === $writeAttribute) ? [] : $writeAttribute->value;
 
         if (null !== $parent) {
             $security->readAttributes += $parent->readAttributes;
@@ -101,10 +108,10 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         $parent = (false !== $parentClass) ? $this->getGroupsInitializers($parentClass) : null;
 
         $reflClass = new \ReflectionClass($className);
-        /** @var GroupsInitializers|null $initializersAnnotation */
-        $initializersAnnotation = $this->annotationReader->getClassAnnotation($reflClass, GroupsInitializers::class);
+        /** @var GroupsInitializers|null $initializersAttribute */
+        $initializersAttribute = self::newInstanceOfFirst($reflClass->getAttributes(GroupsInitializers::class));
 
-        return (null !== $initializersAnnotation) ? ($initializersAnnotation->value + ($parent ?? [])) : $parent;
+        return (null !== $initializersAttribute) ? ($initializersAttribute->value + ($parent ?? [])) : $parent;
     }
 
     /** {@inheritdoc} */
@@ -156,32 +163,32 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
                 continue;
             }
 
-            /** @var Association|null $associationAnnotation */
-            $associationAnnotation = null;
-            /** @var Collection|null $collectionAnnotation */
-            $collectionAnnotation = null;
+            /** @var Association|null $associationAttribute */
+            $associationAttribute = null;
+            /** @var Collection|null $collectionAttribute */
+            $collectionAttribute = null;
 
             if (null !== $reflGetter) {
-                $associationAnnotation = $this->annotationReader->getMethodAnnotation($reflGetter, Association::class);
-                $collectionAnnotation = $this->annotationReader->getMethodAnnotation($reflGetter, Collection::class);
+                $associationAttribute = self::newInstanceOfFirst($reflGetter->getAttributes(Association::class));
+                $collectionAttribute = self::newInstanceOfFirst($reflGetter->getAttributes(Collection::class));
             }
             if (null !== $reflProperty) {
-                $associationAnnotation = $associationAnnotation ?? $this->annotationReader->getPropertyAnnotation($reflProperty, Association::class);
-                $collectionAnnotation = $collectionAnnotation ?? $this->annotationReader->getPropertyAnnotation($reflProperty, Collection::class);
+                $associationAttribute = $associationAttribute ?? self::newInstanceOfFirst($reflProperty->getAttributes(Association::class));
+                $collectionAttribute = $collectionAttribute ?? self::newInstanceOfFirst($reflProperty->getAttributes(Collection::class));
             }
 
-            $associationAnnotation = $this->getSyntheticAssociationAnnotation($doctrineMetadata, $property->originalName, $associationAnnotation);
+            $associationAttribute = $this->getSyntheticAssociationAttribute($doctrineMetadata, $property->originalName, $associationAttribute);
 
-            if (null !== $associationAnnotation) {
-                $property->inverseSubProperty = $associationAnnotation->inversedBy;
-                $property->inlineSubProperty = $associationAnnotation->inline;
-                $property->autoPersist = $associationAnnotation->autoPersist;
-                $property->autoRemove = $associationAnnotation->autoRemove ?? $associationAnnotation->autoPersist;
-                $property->readGroups = $associationAnnotation->readGroups;
-                $property->writeGroups = $associationAnnotation->writeGroups;
+            if (null !== $associationAttribute) {
+                $property->inverseSubProperty = $associationAttribute->inversedBy;
+                $property->inlineSubProperty = $associationAttribute->inline;
+                $property->autoPersist = $associationAttribute->autoPersist;
+                $property->autoRemove = $associationAttribute->autoRemove ?? $associationAttribute->autoPersist;
+                $property->readGroups = $associationAttribute->readGroups;
+                $property->writeGroups = $associationAttribute->writeGroups;
                 $autoToMany = null !== $property->type && $property->type->isCollection();
-                $toMany = $associationAnnotation->toMany ?? $autoToMany;
-                $valueType = (null !== $associationAnnotation->target) ? new Type(Type::BUILTIN_TYPE_OBJECT, !$toMany && ($autoToMany || $property->type->isNullable()), $associationAnnotation->target) : ($autoToMany ? $property->type->getCollectionValueType() : $property->type);
+                $toMany = $associationAttribute->toMany ?? $autoToMany;
+                $valueType = (null !== $associationAttribute->target) ? new Type(Type::BUILTIN_TYPE_OBJECT, !$toMany && ($autoToMany || $property->type->isNullable()), $associationAttribute->target) : ($autoToMany ? $property->type->getCollectionValueType() : $property->type);
                 if ($toMany) {
                     if ($autoToMany) {
                         $property->type = new Type($property->type->getBuiltinType(), $property->type->isNullable(), $property->type->getClassName(), $property->type->isCollection(), $property->type->getCollectionKeyType(), $valueType);
@@ -192,8 +199,8 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
                     $property->type = $valueType;
                 }
             }
-            if (null !== $collectionAnnotation) {
-                $property->indexBySubProperty = $collectionAnnotation->indexBy;
+            if (null !== $collectionAttribute) {
+                $property->indexBySubProperty = $collectionAttribute->indexBy;
             }
         }
         $properties = \array_filter($properties, function (NormalizableProperty $property): bool {
@@ -249,7 +256,7 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return $manager->getClassMetadata($className);
     }
 
-    private function getSyntheticAssociationAnnotation(?ClassMetadata $metadata, string $name, ?Association $physicalAssociation): ?Association
+    private function getSyntheticAssociationAttribute(?ClassMetadata $metadata, string $name, ?Association $physicalAssociation): ?Association
     {
         if (null === $metadata || !$metadata->hasAssociation($name)) {
             return $physicalAssociation;

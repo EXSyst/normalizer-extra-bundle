@@ -56,7 +56,7 @@ exsyst_normalizer_extra:
 
     # Automatically provides metadata consumers with information
     # obtained by using Symfony's PropertyInfo component and serializer
-    # metadata, Doctrine's mappings, and annotations.
+    # metadata, Doctrine's mappings, and attributes.
     # Enabled by default.
     auto_metadata: true
 
