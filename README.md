@@ -43,6 +43,11 @@ exsyst_normalizer_extra:
     # Disabled by default.
     collection: false
 
+    # A normalizer for PHP 8.1+ enums. It will normalize backed enum
+    # cases into their values, and unit enum cases into their names.
+    # Disabled by default.
+    enum: false
+
     # A meta-normalizer that can generate fast normalizers for most
     # classes, and delegate to them.
     # Disabled by default.
@@ -53,6 +58,14 @@ exsyst_normalizer_extra:
     # Some normalizers may be incompatible.
     # Disabled by default.
     implicit_breadth_first: false
+
+    # When using the breadth-first normalization algorithm (see above),
+    # only normalize each object once in each normalized graph.
+    # An object that appears at several places will have its extra
+    # properties merged into the first normalized instance, and the
+    # other instances will be replaced by stubs.
+    # Disabled by default.
+    implicit_merge_objects: false
 
     # Automatically provides metadata consumers with information
     # obtained by using Symfony's PropertyInfo component and serializer

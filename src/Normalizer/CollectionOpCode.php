@@ -11,40 +11,60 @@
 
 namespace EXSyst\NormalizerExtraBundle\Normalizer;
 
-use EXSyst\MiniEnum\Enum;
-
-class CollectionOpCode extends Enum
+enum CollectionOpCode
 {
-    /** @var int update common elements, don't add/remove anything from the target */
-    public const int UPDATE = 0;
+    /** @var self update common elements, don't add/remove anything from the target */
+    case Update;
 
-    /** @var int update common elements, add elements present only in source, don't remove anything from the target */
-    public const int ADD = 1;
+    /** @var self update common elements, add elements present only in source, don't remove anything from the target */
+    case Add;
 
-    /** @var int update common elements, remove elements present only in target, don't add anything to the target */
-    public const int RETAIN = 2;
+    /** @var self update common elements, remove elements present only in target, don't add anything to the target */
+    case Retain;
 
-    /** @var int update common elements, add elements present only in source, remove elements present only in target (full sync) */
-    public const int SET = 3;
+    /** @var self update common elements, add elements present only in source, remove elements present only in target (full sync) */
+    case Set;
 
-    /** @var int remove elements present in source, don't update anything */
-    public const int REMOVE = 4;
+    /** @var self remove elements present in source, don't update anything */
+    case Remove;
 
-    /** @var int perform several operations */
-    public const int MERGE = 5;
+    /** @var self perform several operations */
+    case Merge;
 
-    public static function hasUpdate(int $opCode): bool
+    public static function from(string $opCode): ?self
     {
-        return $opCode >= self::UPDATE && $opCode <= self::SET;
+        return match (\strtoupper($opCode)) {
+            'UPDATE' => self::Update,
+            'ADD'    => self::Add,
+            'RETAIN' => self::Retain,
+            'SET'    => self::Set,
+            'REMOVE' => self::Remove,
+            'MERGE'  => self::Merge,
+            default  => null,
+        };
     }
 
-    public static function hasAdd(int $opCode): bool
+    public static function hasUpdate(self $opCode): bool
     {
-        return self::ADD === $opCode || self::SET === $opCode;
+        return match ($opCode) {
+            self::Update, self::Add, self::Retain, self::Set => true,
+            default => false,
+        };
     }
 
-    public static function hasRetain(int $opCode): bool
+    public static function hasAdd(self $opCode): bool
     {
-        return self::RETAIN === $opCode || self::SET === $opCode;
+        return match ($opCode) {
+            self::Add, self::Set => true,
+            default => false,
+        };
+    }
+
+    public static function hasRetain(self $opCode): bool
+    {
+        return match ($opCode) {
+            self::Retain, self::Set => true,
+            default => false,
+        };
     }
 }

@@ -23,13 +23,11 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class SerializerViewListener
 {
-    private SerializerInterface $serializer;
-    private array $context;
+    private readonly array $context;
     private \SplObjectStorage $controllers;
 
-    public function __construct(SerializerInterface $serializer, array $context = [])
+    public function __construct(private readonly SerializerInterface $serializer, array $context = [])
     {
-        $this->serializer = $serializer;
         $this->context = $context + [
             'check_authorizations' => true,
         ];

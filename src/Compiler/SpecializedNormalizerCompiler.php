@@ -11,27 +11,26 @@
 
 namespace EXSyst\NormalizerExtraBundle\Compiler;
 
-use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\ORMInvalidArgumentException;
-use EXSyst\DynamicClassGenerationBundle\Compiler\ClassGeneratorInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use EXSyst\DynamicClassGenerationBundle\Compiler\ResolvedClassInfo;
 use EXSyst\DynamicClassGenerationBundle\Helper\StreamWriter;
+use EXSyst\NormalizerExtraBundle\BitOperations;
 use EXSyst\NormalizerExtraBundle\Doctrine\FlushProofUpdater;
 use EXSyst\NormalizerExtraBundle\Metadata\ClassFactory;
 use EXSyst\NormalizerExtraBundle\Metadata\GroupsSecurity;
 use EXSyst\NormalizerExtraBundle\Metadata\NormalizableMetadataProviderInterface;
 use EXSyst\NormalizerExtraBundle\Metadata\NormalizableProperty;
+use EXSyst\NormalizerExtraBundle\Normalizer\BreadthFirstHelper;
 use EXSyst\NormalizerExtraBundle\Normalizer\SpecializedNormalizer;
+use EXSyst\NormalizerExtraBundle\Normalizer\SpecializingNormalizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\Filesystem\Exception\IOException;
-use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 
-class SpecializedNormalizerCompiler implements ClassGeneratorInterface
+class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
 {
-    private const string PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
-    private const string SUFFIX = 'Normalizer';
+    protected const string PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
 
     private NormalizableMetadataProviderInterface $metadataProvider;
     private ManagerRegistry $doctrine;
@@ -46,11 +45,6 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         $this->container = $container;
     }
 
-    public static function getNormalizerClassFor(string $className): string
-    {
-        return self::PREFIX.$className.self::SUFFIX;
-    }
-
     public function getForClass(string $className): SpecializedNormalizer
     {
         $normalizerClass = self::getNormalizerClassFor($className);
@@ -58,27 +52,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         return new $normalizerClass($this->doctrine, $this->authorizationChecker, $this->container);
     }
 
-    public function generate(ResolvedClassInfo $class): bool
-    {
-        $rest = $class->getRest();
-        $suffixLength = \strlen(self::SUFFIX);
-        if (\strlen($rest) < $suffixLength || 0 !== \substr_compare($rest, self::SUFFIX, -$suffixLength, $suffixLength)) {
-            return false;
-        }
-        $fd = \fopen($class->getPath(), 'wb');
-        if (false === $fd) {
-            throw new IOException('Cannot open temporary file to compile class '.$class->getClass());
-        }
-        try {
-            $this->compileNormalizerClass(new StreamWriter($fd), $class);
-        } finally {
-            \fclose($fd);
-        }
-
-        return true;
-    }
-
-    private function compileNormalizerClass(StreamWriter $fd, ResolvedClassInfo $class): void
+    protected function compileNormalizerClass(StreamWriter $fd, ResolvedClassInfo $class): void
     {
         $normalizerClass = $class->getClass();
         $nsPos = \strrpos($normalizerClass, '\\');
@@ -90,15 +64,29 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         if (isset($factory) && isset($factory->service) && !isset($helpers[$factory->service])) {
             $helpers[$factory->service] = 'helper'.$helperIndex++;
         }
+        $clientType = $this->metadataProvider->getClientType($className);
         $properties = $this->metadataProvider->getNormalizableProperties($className);
         $inverses = new \SplObjectStorage();
-        $attributes = [];
-        $groupsAttributes = [];
+        $maskLength = \intdiv(\count($properties) + (\PHP_INT_SIZE << 3) - 2, (\PHP_INT_SIZE << 3) - 1);
+        $emptyMask = \array_fill(0, $maskLength, 0);
+        $propertyNames = [];
+        $propertyIndices = [];
+        $groupMasks = [];
+        $fullMask = $emptyMask;
         \ksort($properties);
+        $propertyIndex = -1;
         foreach ($properties as $property => $meta) {
-            $attributes[$property] = true;
+            ++$propertyIndex;
+            $maskWordIndex = \intdiv($propertyIndex, (\PHP_INT_SIZE << 3) - 1);
+            $maskBitIndex = $propertyIndex % ((\PHP_INT_SIZE << 3) - 1);
+            $propertyNames[$maskWordIndex][$maskBitIndex] = $property;
+            $propertyIndices[$property] = [$maskWordIndex, $maskBitIndex];
+            $fullMask[$maskWordIndex] |= 1 << $maskBitIndex;
             foreach ($meta->groups as $group) {
-                $groupsAttributes[$group][$property] = true;
+                if (!isset($groupMasks[$group])) {
+                    $groupMasks[$group] = $emptyMask;
+                }
+                $groupMasks[$group][$maskWordIndex] |= 1 << $maskBitIndex;
             }
             if (isset($meta->getHelper) && !isset($helpers[$meta->getHelper])) {
                 $helpers[$meta->getHelper] = 'helper'.$helperIndex++;
@@ -124,19 +112,14 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 $helpers[$inverseMeta->setHelper] = 'helper'.$helperIndex++;
             }
         }
-        \ksort($groupsAttributes);
-        foreach ($groupsAttributes as &$entry) {
-            \ksort($entry);
-        }
-        unset($entry);
 
         $groupsSecurity = $this->metadataProvider->getGroupsSecurity($className) ?? new GroupsSecurity();
-        $groupsReadSecurity = \array_intersect_key($groupsSecurity->readAttributes, $groupsAttributes);
-        $groupsWriteSecurity = \array_intersect_key($groupsSecurity->writeAttributes, $groupsAttributes);
+        $groupsReadSecurity = \array_intersect_key($groupsSecurity->readAttributes, $groupMasks);
+        $groupsWriteSecurity = \array_intersect_key($groupsSecurity->writeAttributes, $groupMasks);
         \ksort($groupsReadSecurity);
         \ksort($groupsWriteSecurity);
 
-        $groupsInitializers = \array_intersect_key($this->metadataProvider->getGroupsInitializers($className) ?? [], $groupsAttributes);
+        $groupsInitializers = \array_intersect_key($this->metadataProvider->getGroupsInitializers($className) ?? [], $groupMasks);
         \ksort($groupsInitializers);
         foreach ($groupsInitializers as $service) {
             if (isset($service) && !isset($helpers[$service])) {
@@ -170,7 +153,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         foreach ($helpers as $service => $helper) {
             $fd
                 ->printfln('/** @var object the %s service */', $service)
-                ->printfln('private $%s;', $helper)
+                ->printfln('private object $%s;', $helper)
                 ->printfln()
             ;
         }
@@ -192,8 +175,104 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('$this->doctrine = $doctrine;')
             ->printfln('$this->authorizationChecker = $authorizationChecker;')
             ->printfln()
-            ->printfln('$this->attributes = %s;', \var_export($attributes, true))
-            ->printfln('$this->groupsAttributes = %s;', \var_export($groupsAttributes, true))
+            ->printfln('$this->propertyNames = [')
+            ->indent()
+        ;
+        foreach ($propertyNames as $names) {
+            $fd->printfln('[%s],', \implode(', ', \array_map(fn (string $name): string => \var_export($name, true), $names)));
+        }
+        $fd
+            ->outdent()
+            ->printfln('];')
+            ->printfln('$this->propertyIndices = [', \var_export($propertyIndices, true))
+            ->indent()
+        ;
+        foreach ($propertyIndices as $property => $index) {
+            $fd->printfln('%s => [%d, %d],', \var_export($property, true), $index[0], $index[1]);
+        }
+        $fd
+            ->outdent()
+            ->printfln('];')
+            ->printfln('$this->groupMasks = [', \var_export($groupMasks, true))
+            ->indent()
+        ;
+        foreach ($groupMasks as $group => $mask) {
+            $fd->printfln('%s => %s,', \var_export($group, true), self::exportMask($mask));
+        }
+        $fd
+            ->outdent()
+            ->printfln('];')
+            ->printfln('$this->fullMask = %s;', self::exportMask($fullMask))
+            ->printfln('$this->emptyMask = %s;', self::exportMask($emptyMask))
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
+        ;
+
+        /* ----- Mask Operations ----- */
+
+        $fd
+            ->printfln('protected static function unionMask(array &$mask, array $mask2): void')
+            ->printfln('{')
+            ->indent()
+        ;
+        for ($wordIndex = 0; $wordIndex < $maskLength; ++$wordIndex) {
+            $fd->printfln('$mask[%d] |= $mask2[%1$d];', $wordIndex);
+        }
+        $fd
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
+        ;
+
+        $fd
+            ->printfln('protected static function intersectMask(array &$mask, array $mask2): void')
+            ->printfln('{')
+            ->indent()
+        ;
+        for ($wordIndex = 0; $wordIndex < $maskLength; ++$wordIndex) {
+            $fd->printfln('$mask[%d] &= $mask2[%1$d];', $wordIndex);
+        }
+        $fd
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
+        ;
+
+        $fd
+            ->printfln('protected static function subtractMask(array &$mask, array $subtrahend): void')
+            ->printfln('{')
+            ->indent()
+        ;
+        for ($wordIndex = 0; $wordIndex < $maskLength; ++$wordIndex) {
+            $fd->printfln('$mask[%d] &= ~$subtrahend[%1$d];', $wordIndex);
+        }
+        $fd
+            ->outdent()
+            ->printfln('}')
+            ->printfln()
+        ;
+
+        /* ----- Mask Property Decoding ----- */
+
+        $fd
+            ->printfln('protected static function decodeMaskProperties(array $mask): array')
+            ->printfln('{')
+            ->indent()
+            ->printfln('$properties = [];')
+        ;
+        foreach ($properties as $property => $_) {
+            $fd
+                ->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
+                ->indent()
+                ->printfln('$properties[%s] = true;', \var_export($property, true))
+                ->outdent()
+                ->printfln('}')
+            ;
+        }
+        $fd
+            ->printfln()
+            ->printfln('return $properties;')
             ->outdent()
             ->printfln('}')
             ->printfln()
@@ -203,7 +282,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
         $fd
             ->printfln('/** @param T $object */')
-            ->printfln('public function normalize($object, $format = null, array $context = [])')
+            ->printfln('public function normalize($object, $format = null, array $context = []): ?array')
             ->printfln('{')
             ->indent()
             ->printfln('if (isset($context[\'breadth_first_helper\']) && $context[\'breadth_first_helper\']->getCurrentObject() === $object) {')
@@ -215,15 +294,11 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('}')
             ->printfln()
         ;
-        self::emitAttributesCalculation($fd, $groupsReadSecurity, $groupsAttributes, $properties);
+        self::emitAttributesCalculation($fd, $groupsReadSecurity, $groupMasks, $properties, $propertyIndices);
         if (\count($groupsInitializers) > 0) {
             foreach ($groupsInitializers as $group => $service) {
-                $checks = [];
-                foreach ($groupsAttributes[$group] as $property => $_) {
-                    $checks[$property] = \sprintf('($attributes[%s] ?? false)', \var_export($property, true));
-                }
                 $fd
-                    ->printfln('if (%s) {', \implode(' || ', $checks))
+                    ->printfln('if (%s) { // ...%s', self::generateChecks($groupMasks[$group]), $group)
                     ->indent()
                     ->printfln('$this->%s->initialize($object);', $helpers[$service])
                     ->outdent()
@@ -232,21 +307,23 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             }
             $fd->printfln();
         }
-        $fd
-            ->printfln('$normalized = [];')
-            ->printfln()
-        ;
+        if (null !== $clientType) {
+            $fd->printfln('$normalized = [%s => 0x%X];', \var_export(SpecializingNormalizer::TYPE_KEY, true), BitOperations::fnv1a32($className));
+        } else {
+            $fd->printfln('$normalized = [];');
+        }
+        $fd->printfln();
         foreach ($properties as $property => $meta) {
             if (!isset($meta->getTemplate)) {
                 continue;
             }
             $expression = self::generateGet($meta, $helpers, '$object');
             $fd
-                ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
+                ->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
                 ->indent()
             ;
             $primaryType = $meta->type;
-            if (self::requiresNormalization($primaryType)) {
+            if (TypeHelpers::requiresNormalization($primaryType)) {
                 /** @var NormalizableProperty|null $inverseMeta */
                 $inverseMeta = $inverses[$meta];
                 $fd
@@ -295,23 +372,26 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
         $fd
             ->printfln('/** @param T $object */')
-            ->printfln('private function normalizeBreadthFirst($object, $format = null, array $context = []): void')
+            ->printfln('private function normalizeBreadthFirst(T $object, ?string $format = null, array $context = []): void')
             ->printfln('{')
             ->indent()
             ->printfln('$helper = $context[\'breadth_first_helper\'];')
+            ->printfln('$bindIndex = $helper->getCurrentBindIndex();')
             ->printfln('$normalized = &$helper->getCurrentBindPoint();')
             ->printfln()
-            ->printfln('if (isset($context[__CLASS__.\'::breadth_first_attributes\'])) {')
+            ->printfln('if (isset($context[__CLASS__.\'::breadth_first_mask\'])) {')
             ->indent()
             ->printfln('$secondPass = true;')
-            ->printfln('$attributes = $context[__CLASS__.\'::breadth_first_attributes\'];')
-            ->printfln('unset($context[__CLASS__.\'::breadth_first_attributes\']);')
+            ->printfln('$mask = $context[__CLASS__.\'::breadth_first_mask\'];')
+            ->printfln('$subGroups = $context[__CLASS__.\'::breadth_first_sub_groups\'];')
+            ->printfln('unset($context[__CLASS__.\'::breadth_first_mask\']);')
+            ->printfln('unset($context[__CLASS__.\'::breadth_first_sub_groups\']);')
             ->outdent()
             ->printfln('} else {')
             ->indent()
             ->printfln('$secondPass = false;')
         ;
-        $this->emitAttributesCalculation($fd, $groupsReadSecurity, $groupsAttributes, $properties);
+        $this->emitAttributesCalculation($fd, $groupsReadSecurity, $groupMasks, $properties, $propertyIndices);
         $fd
             ->outdent()
             ->printfln('}')
@@ -324,12 +404,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 ->printfln('$newPass = false;')
             ;
             foreach ($groupsInitializers as $group => $service) {
-                $checks = [];
-                foreach ($groupsAttributes[$group] as $property => $_) {
-                    $checks[$property] = \sprintf('($attributes[%s] ?? false)', \var_export($property, true));
-                }
                 $fd
-                    ->printfln('if ((%s) && $this->%s->collect($object)) {', \implode(' || ', $checks), $helpers[$service])
+                    ->printfln('if ((%s) && $this->%s->collect($object)) { // ...%s', self::generateChecks($groupMasks[$group]), $helpers[$service], $group)
                     ->indent()
                     ->printfln('$helper->registerInitializer($this->%s);', $helpers[$service])
                     ->printfln('$newPass = true;')
@@ -342,7 +418,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 ->indent()
                 ->printfln('$helper->bind($normalized, $this, $object, $format, [')
                 ->indent()
-                ->printfln('__CLASS__.\'::breadth_first_attributes\' => $attributes,')
+                ->printfln('__CLASS__.\'::breadth_first_mask\' => $mask,')
+                ->printfln('__CLASS__.\'::breadth_first_sub_groups\' => $subGroups,')
                 ->outdent()
                 ->printfln('] + $context);')
                 ->printfln()
@@ -357,11 +434,17 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         $fd
             ->printfln('if (null === $normalized) {')
             ->indent()
-            ->printfln('$normalized = [];')
+        ;
+        if (null !== $clientType) {
+            $fd->printfln('$normalized = isset($bindIndex) ? [%s => $bindIndex, %s => 0x%X] : [%2$s => 0x%3$X];', \var_export(BreadthFirstHelper::INDEX_KEY, true), \var_export(SpecializingNormalizer::TYPE_KEY, true), BitOperations::fnv1a32($className));
+        } else {
+            $fd->printfln('$normalized = isset($bindIndex) ? [%s => $bindIndex] : [];', \var_export(BreadthFirstHelper::INDEX_KEY, true));
+        }
+        $fd
             ->outdent()
-            ->printfln('} else {')
+            ->printfln('} elseif (!isset($context[\'shape\'])) {')
             ->indent()
-            ->printfln('$attributes = \\array_diff_key($attributes, $normalized);')
+            ->printfln('self::subtractMask($mask, $this->getPropertiesMask($normalized));')
             ->outdent()
             ->printfln('}')
             ->printfln()
@@ -373,22 +456,23 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             }
             $expression = self::generateGet($meta, $helpers, '$object');
             $fd
-                ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
+                ->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
                 ->indent()
             ;
             $primaryType = $meta->type;
-            if (self::requiresNormalization($primaryType)) {
+            if (TypeHelpers::requiresNormalization($primaryType)) {
                 /** @var NormalizableProperty|null $inverseMeta */
                 $inverseMeta = $inverses[$meta];
                 $fd
-                    ->printfln('if (%s === ($context[\'inline_property\'] ?? null)) {', \var_export($property, true))
+                    ->printfln('$inline = %s === ($context[\'inline_property\'] ?? null);', \var_export($property, true))
+                    ->printfln('if ($inline) {')
                     ->indent()
                     ->printfln('$bindPoint = &$normalized;')
                     ->printfln('$callContinuation = false;')
                     ->outdent()
                     ->printfln('} else {')
                     ->indent()
-                    ->printfln('$normalized[%s] = null;', \var_export($property, true))
+                    ->printfln('$normalized[%s] ??= null;', \var_export($property, true))
                     ->printfln('$bindPoint = &$normalized[%s];', \var_export($property, true))
                     ->outdent()
                     ->printfln('}')
@@ -406,7 +490,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('\'index_by_property\' => %s,', \var_export($meta->indexBySubProperty, true))
                     ->printfln('\'skip_property\'     => %s,', \var_export(null !== $inverseMeta && null !== $inverseMeta->type && $inverseMeta->type->isCollection() ? null : $meta->inverseSubProperty, true))
                     ->printfln('\'inbound_property\'  => %s,', \var_export($property, true))
-                    ->printfln('\'continuation\'      => (%s === ($context[\'inline_property\'] ?? null)) ? ($context[\'continuation\'] ?? null) : null,', \var_export($property, true))
+                    ->printfln('\'continuation\'      => $inline ? ($context[\'continuation\'] ?? null) : null,', \var_export($property, true))
                     ->outdent()
                     ->printfln('] + $context);')
                     ->printfln('unset($bindPoint);')
@@ -433,7 +517,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         /* ----- Denormalization ----- */
 
         $fd
-            ->printfln('public function denormalize($data, $class, $format = null, array $context = [])')
+            ->printfln('public function denormalize($data, $class, $format = null, array $context = []): ?T')
             ->printfln('{')
             ->indent()
             ->printfln('if (null === $data || $data instanceof T) {')
@@ -443,13 +527,14 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('}')
             ->printfln()
             ->printfln('$data = ($context[\'force_properties\'] ?? []) + $data;')
-            ->printfln('$attributes = $this->getWriteAttributeSet($context, $data);')
+            ->printfln('$mask = $this->getWriteMask($context, $data);')
             ->printfln()
             ->printfln('if (isset($context[\'inline_property\'])) {')
             ->indent()
-            ->printfln('$inlined = \\array_diff_key($data, $attributes);')
-            ->printfln('$data = \\array_intersect_key($data, $attributes);')
-            ->printfln('$attributes[$context[\'inline_property\']] = true;')
+            ->printfln('$properties = self::decodeMaskProperties($mask);')
+            ->printfln('$inlined = \\array_diff_key($data, $properties);')
+            ->printfln('$data = \\array_intersect_key($data, $properties);')
+            ->printfln('self::setMaskBit($mask, $this->propertyIndices[$context[\'inline_property\']], true);')
             ->printfln('$data[$context[\'inline_property\']] = $inlined;')
             ->outdent()
             ->printfln('}')
@@ -461,8 +546,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->outdent()
             ->printfln('}')
         ;
-        $this->emitInstantiateFromORM($fd, $groupsAttributes, $properties, $className, $helpers);
-        $this->emitInstantiateWithFactoryOrConstructor($fd, $groupsAttributes, $properties, $className, $factory, $helpers);
+        $this->emitInstantiateFromORM($fd, $groupMasks, $propertyNames, $properties, $className, $helpers);
+        $this->emitInstantiateWithFactoryOrConstructor($fd, $groupMasks, $propertyNames, $properties, $propertyIndices, $className, $factory, $helpers, $emptyMask);
         $fd
             ->printfln('$class = \\get_class($object);')
             ->printfln('if (T::class !== $class) {')
@@ -475,18 +560,18 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->outdent()
             ->printfln('}')
             ->printfln()
-            ->printfln('if (isset($context[\'pre_write\']) && !empty($attributes) && !$context[\'pre_write\']($object)) {')
+            ->printfln('if (isset($context[\'pre_write\']) && $mask !== $this->emptyMask && !$context[\'pre_write\']($object)) {')
             ->indent()
-            ->printfln('$attributes = [];')
+            ->printfln('$mask = $this->emptyMask;')
             ->outdent()
             ->printfln('}')
             ->printfln()
         ;
-        $this->emitSecurityChecks($fd, $groupsWriteSecurity, $groupsAttributes);
+        $this->emitSecurityChecks($fd, $groupsWriteSecurity, $groupMasks);
         $fd
             ->printfln('if ($context[\'strict\'] ?? false) {')
             ->indent()
-            ->printfln('$extraAttributes = \\array_diff_key($data, $attributes);')
+            ->printfln('$extraAttributes = \\array_diff_key($data, self::decodeMaskProperties($mask));')
             ->printfln('if (\\count($extraAttributes) > 0) {')
             ->indent()
             ->printfln('throw new ExtraAttributesException(\\array_keys($extraAttributes));')
@@ -500,17 +585,17 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             $primaryType = $meta->type;
             /** @var NormalizableProperty|null $inverseMeta */
             $inverseMeta = $inverses[$meta];
-            if (self::isCollectionObject($primaryType)) {
+            if (TypeHelpers::isCollectionObject($primaryType)) {
                 if (!isset($meta->getTemplate) && !isset($meta->getForUpdateTemplate)) {
                     continue;
                 }
                 $expression = self::generateGetForUpdate($meta, $helpers, '$object');
                 $fd
-                    ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
+                    ->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
                     ->indent()
                 ;
                 if ($meta->autoPersist || $meta->autoRemove) {
-                    $fd->printfln('$updater = FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(%s), $context);', \var_export(self::getDenormalizationClass($primaryType->getCollectionValueType()), true));
+                    $fd->printfln('$updater = FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(%s), $context);', \var_export(TypeHelpers::getDenormalizationClass($primaryType->getCollectionValueType()), true));
                 }
                 self::emitDenormalizeCall($fd, $meta, '', $expression, $inverseMeta, $helpers);
                 $fd
@@ -522,10 +607,10 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     continue;
                 }
                 $fd
-                    ->printfln('if ($attributes[%s] ?? false) {', \var_export($property, true))
+                    ->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
                     ->indent()
                 ;
-                if (self::requiresDenormalization($primaryType)) {
+                if (TypeHelpers::requiresDenormalization($primaryType)) {
                     self::emitDenormalizeCall($fd, $meta, '$value = ', 'null', $inverseMeta, $helpers);
                     $expression = '$value';
                 } else {
@@ -570,10 +655,10 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 ;
             }
         }
-        if (isset($groupsAttributes['identity'])) {
+        if (isset($groupMasks['identity'])) {
             $fd
                 ->printfln()
-                ->printfln('if (!empty($attributes)) {')
+                ->printfln('if ($mask !== $this->emptyMask) {')
                 ->indent()
                 ->printfln('FlushProofUpdater::fromManagerAndContext($this->doctrine->getManagerForClass(T::class), $context)->update($object);')
                 ->outdent()
@@ -591,14 +676,14 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         /* ----- Support checks ----- */
 
         $fd
-            ->printfln('public function supportsNormalization($data, $format = null)')
+            ->printfln('public function supportsNormalization($data, $format = null): bool')
             ->printfln('{')
             ->indent()
             ->printfln('return $data instanceof T;')
             ->outdent()
             ->printfln('}')
             ->printfln()
-            ->printfln('public function supportsDenormalization($data, $type, $format = null)')
+            ->printfln('public function supportsDenormalization($data, $type, $format = null): bool')
             ->printfln('{')
             ->indent()
             ->printfln('return T::class === $type;')
@@ -614,20 +699,20 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         ;
     }
 
-    private static function emitAttributesCalculation(StreamWriter $fd, array $groupsReadSecurity, array $groupsAttributes, array $properties): void
+    private static function emitAttributesCalculation(StreamWriter $fd, array $groupsReadSecurity, array $groupMasks, array $properties, array $propertyIndices): void
     {
         $fd
-            ->printfln('$attributes = $this->getReadAttributeSet($context);')
+            ->printfln('$mask = $this->getReadMask($context);')
             ->printfln('$subGroups = [];')
             ->printfln()
         ;
-        self::emitSecurityChecks($fd, $groupsReadSecurity, $groupsAttributes);
+        self::emitSecurityChecks($fd, $groupsReadSecurity, $groupMasks);
         foreach ($properties as $property => $meta) {
             if ($meta->alwaysNormalize) {
                 $fd
-                    ->printfln('if (!($attributes[%s] ?? false)) {', \var_export($property, true))
+                    ->printfln('if (0 === ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1], $property)
                     ->indent()
-                    ->printfln('$attributes[%s] = true;', \var_export($property, true))
+                    ->printfln('$mask[%d] |= 0x%X;', $propertyIndices[$property][0], 1 << $propertyIndices[$property][1])
                     ->printfln('$subGroups[%s] = [];', \var_export($property, true))
                     ->outdent()
                     ->printfln('}')
@@ -638,14 +723,14 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         $fd
             ->printfln('if (isset($context[\'skip_property\'])) {')
             ->indent()
-            ->printfln('unset($attributes[$context[\'skip_property\']]);')
+            ->printfln('self::setMaskBit($mask, $this->propertyIndices[$context[\'skip_property\']], false);')
             ->printfln('unset($subGroups[$context[\'skip_property\']]);')
             ->outdent()
             ->printfln('}')
             ->printfln()
             ->printfln('if (isset($context[\'inline_property\'])) {')
             ->indent()
-            ->printfln('$attributes[$context[\'inline_property\']] = true;')
+            ->printfln('self::setMaskBit($mask, $this->propertyIndices[$context[\'inline_property\']], true);')
             ->printfln('$context[\'shape\'][$context[\'inline_property\']] = $context[\'shape\'] ?? null;')
             ->printfln('unset($subGroups[$context[\'inline_property\']]);')
             ->outdent()
@@ -653,7 +738,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln()
             ->printfln('if (isset($context[\'index_by_property\'])) {')
             ->indent()
-            ->printfln('$attributes[$context[\'index_by_property\']] = true;')
+            ->printfln('self::setMaskBit($mask, $this->propertyIndices[$context[\'index_by_property\']], true);')
             ->printfln('$context[\'shape\'][$context[\'index_by_property\']] = $context[\'shape\'] ?? null;')
             ->printfln('unset($subGroups[$context[\'index_by_property\']]);')
             ->outdent()
@@ -662,33 +747,28 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         ;
     }
 
-    private static function emitInstantiateFromORM(StreamWriter $fd, array $groupsAttributes, array $properties, string $className, array $helpers): void
+    private static function emitInstantiateFromORM(StreamWriter $fd, array $groupMasks, array $propertyNames, array $properties, string $className, array $helpers): void
     {
-        if (isset($groupsAttributes['identity'])) {
-            $checks = self::generateChecks($groupsAttributes['identity']);
-            if (\count($checks) > 1) {
-                $fd
-                    ->printfln('if (null === $object && (%s)) {', \implode(' || ', $checks))
-                    ->indent()
-                ;
-                foreach ($checks as $property => $check) {
+        if (isset($groupMasks['identity'])) {
+            $identityProperties = BitOperations::countOnesInMask($groupMasks['identity']);
+            $checks = self::generateChecks($groupMasks['identity']);
+            $fd
+                ->printfln('if (null === $object && (%s)) { // ...identity', $checks)
+                ->indent()
+            ;
+            if ($identityProperties > 1) {
+                foreach (self::enumerateProperties($groupMasks['identity'], $propertyNames) as [$property, $wordIndex, $bitIndex]) {
                     $fd
-                        ->printfln('if (!(%s)) {', $check)
+                        ->printfln('if (0 === ($mask[%d] & 0x%X)) { // %s', $wordIndex, 1 << $bitIndex, $property)
                         ->indent()
                         ->printfln('throw new \\RuntimeException(\'Cannot retrieve instance of %s because part of the primary key has been specified but %s has been omitted\');', $className, $property)
                         ->outdent()
-                        ->printfln('}')
-                    ;
+                        ->printfln('}');
                 }
-            } else {
-                $fd
-                    ->printfln('if (null === $object && %s) {', \reset($checks))
-                    ->indent()
-                ;
             }
             $identifier = [];
             $i = 0;
-            foreach ($groupsAttributes['identity'] as $property => $_) {
+            foreach (self::enumerateProperties($groupMasks['identity'], $propertyNames) as [$property]) {
                 $fd
                     ->printfln('if (!isset($data[%s])) {', \var_export($property, true))
                     ->indent()
@@ -697,9 +777,9 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     ->printfln('}')
                 ;
             }
-            foreach ($groupsAttributes['identity'] as $property => $_) {
+            foreach (self::enumerateProperties($groupMasks['identity'], $propertyNames) as [$property]) {
                 $meta = $properties[$property];
-                if (self::requiresDenormalization($meta->type)) {
+                if (TypeHelpers::requiresDenormalization($meta->type)) {
                     self::emitDenormalizeCall($fd, $meta, \sprintf('$identity%d = ', $i), 'null', null, $helpers);
                     $identifier[$meta->originalName] = \sprintf('$identity%d', $i);
                 } else {
@@ -739,7 +819,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         }
     }
 
-    private function emitInstantiateWithFactoryOrConstructor(StreamWriter $fd, array $groupsAttributes, array $properties, string $className, ?ClassFactory $factory, array $helpers): void
+    private function emitInstantiateWithFactoryOrConstructor(StreamWriter $fd, array $groupMasks, array $propertyNames, array $properties, array $propertyIndices, string $className, ?ClassFactory $factory, array $helpers, array $emptyMask): void
     {
         $fd
             ->printfln('if (null === $object) {')
@@ -772,8 +852,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     $primaryType = (null === $property) ? null : $property->type;
                     if ($parameter->isVariadic()) {
                         if (null !== $property) {
-                            if (self::requiresDenormalization($primaryType)) {
-                                $fd->printfln('if ($attributes[%s] ?? false) {', \var_export($property->name, true));
+                            if (TypeHelpers::requiresDenormalization($primaryType)) {
+                                $fd->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property->name][0], 1 << $propertyIndices[$property->name][1], $property->name);
                                 self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                                 $fd
                                     ->printfln('} else {')
@@ -783,7 +863,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                                     ->printfln('}')
                                 ;
                             } else {
-                                $fd->printfln('$param%d = ($attributes[%s] ?? false) ? $data[%2$s] : [];', $i, \var_export($property->name, true));
+                                $fd->printfln('$param%d = (0 !== ($mask[%d] & 0x%X)) ? $data[%s] : [];', $i, $propertyIndices[$property->name][0], 1 << $propertyIndices[$property->name][1], \var_export($property->name, true));
                             }
                             $fd
                                 ->printfln('if (!\\is_array($param%d)) {', $i)
@@ -796,8 +876,8 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                         }
                     } elseif ($parameter->isDefaultValueAvailable()) {
                         if (null !== $property) {
-                            if (self::requiresDenormalization($primaryType)) {
-                                $fd->printfln('if ($attributes[%s] ?? false) {', \var_export($property->name, true));
+                            if (TypeHelpers::requiresDenormalization($primaryType)) {
+                                $fd->printfln('if (0 !== ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property->name][0], 1 << $propertyIndices[$property->name][1], $property->name);
                                 self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                                 $fd
                                     ->printfln('} else {')
@@ -808,20 +888,20 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                                 ;
                                 $args[] = \sprintf('$param%d', $i);
                             } else {
-                                $args[] = \sprintf('($attributes[%s] ?? false) ? $data[%1$s] : %s', \var_export($property->name, true), \var_export($parameter->getDefaultValue(), true));
+                                $args[] = \sprintf('(0 !== ($mask[%d] & 0x%X)) ? $data[%s] : %s', $propertyIndices[$property->name][0], 1 << $propertyIndices[$property->name][1], \var_export($property->name, true), \var_export($parameter->getDefaultValue(), true));
                             }
                         } else {
                             $args[] = \var_export($parameter->getDefaultValue(), true);
                         }
                     } else {
                         $fd
-                            ->printfln('if (!($attributes[%s] ?? false)) {', \var_export($property->name, true))
+                            ->printfln('if (0 === ($mask[%d] & 0x%X)) { // %s', $propertyIndices[$property->name][0], 1 << $propertyIndices[$property->name][1], $property->name)
                             ->indent()
                             ->printfln('throw new \\RuntimeException(\'Cannot construct instance of %s because %s parameter %s has been omitted or is not writable in the current context\');', $className, (null !== $factory) ? 'factory' : 'constructor', $property->name)
                             ->outdent()
                             ->printfln('}')
                         ;
-                        if (self::requiresDenormalization($primaryType)) {
+                        if (TypeHelpers::requiresDenormalization($primaryType)) {
                             self::emitDenormalizeCall($fd, $property, \sprintf('$param%d = ', $i), 'null', null, $helpers);
                             $args[] = \sprintf('$param%d', $i);
                         } else {
@@ -830,13 +910,17 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                     }
                 }
                 $fd->printfln('$object = %s(%s);', (null !== $factory) ? (isset($factory->service) ? \sprintf('$this->%s->%s', $helpers[$factory->service], $factory->method) : \sprintf('\\%s::%s', $factory->class ?? $className, $factory->method)) : 'new T', implode(', ', $args));
+                $parameterMask = $emptyMask;
                 foreach ($parameters as $i => $parameter) {
                     $property = $propertiesByOriginalName[$parameter->name] ?? null;
                     if (null !== $property) {
-                        $fd
-                            ->printfln('unset($data[%s]);', \var_export($parameter->name, true))
-                            ->printfln('unset($attributes[%s]);', \var_export($parameter->name, true))
-                        ;
+                        $fd->printfln('unset($data[%s]);', \var_export($property->name, true));
+                        $parameterMask[$propertyIndices[$property->name][0]] |= 1 << $propertyIndices[$property->name][1];
+                    }
+                }
+                foreach ($parameterMask as $wordIndex => $word) {
+                    if (0 !== $word) {
+                        $fd->printfln('$mask[%d] &= ~0x%X;', $wordIndex, $word);
                     }
                 }
             } else {
@@ -852,17 +936,19 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('}')
             ->printfln()
         ;
-        if (isset($groupsAttributes['identity'])) {
-            foreach ($groupsAttributes['identity'] as $property => $_) {
-                $fd
-                    ->printfln('unset($data[%s]);', \var_export($property, true))
-                    ->printfln('unset($attributes[%s]);', \var_export($property, true))
-                ;
+        if (isset($groupMasks['identity'])) {
+            foreach (self::enumerateProperties($groupMasks['identity'], $propertyNames) as [$property]) {
+                $fd->printfln('unset($data[%s]);', \var_export($property, true));
+            }
+            foreach ($groupMasks['identity'] as $wordIndex => $word) {
+                if (0 !== $word) {
+                    $fd->printfln('$mask[%d] &= ~0x%X;', $wordIndex, $word);
+                }
             }
         }
     }
 
-    private static function emitSecurityChecks(StreamWriter $fd, array $groupsSecurity, array $groupsAttributes): void
+    private static function emitSecurityChecks(StreamWriter $fd, array $groupsSecurity, array $groupMasks): void
     {
         if (\count($groupsSecurity) > 0) {
             $fd
@@ -870,13 +956,15 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
                 ->indent()
             ;
             foreach ($groupsSecurity as $group => $securityAttribute) {
-                $checks = self::generateChecks($groupsAttributes[$group]);
+                $checks = self::generateChecks($groupMasks[$group]);
                 $fd
-                    ->printfln('if ((%s) && !$this->authorizationChecker->isGranted(%s, $object)) {', \implode(' || ', $checks), \var_export($securityAttribute, true))
+                    ->printfln('if ((%s) && !$this->authorizationChecker->isGranted(%s, $object)) { // ...%s', $checks, \var_export($securityAttribute, true), $group)
                     ->indent()
                 ;
-                foreach ($groupsAttributes[$group] as $property => $_) {
-                    $fd->printfln('unset($attributes[%s]);', \var_export($property, true));
+                foreach ($groupMasks[$group] as $wordIndex => $word) {
+                    if (0 !== $word) {
+                        $fd->printfln('$mask[%d] &= ~0x%X;', $wordIndex, $word);
+                    }
                 }
                 $fd
                     ->outdent()
@@ -895,7 +983,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
     {
         $primaryType = $meta->type;
         $fd
-            ->printfln(self::isNullable($primaryType) ? '%s(null === $data[%s]) ? null : $this->denormalizer->denormalize($data[%2$s], %s, $format, [' : '%s$this->denormalizer->denormalize($data[%s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(self::getDenormalizationClass($primaryType), true))
+            ->printfln(TypeHelpers::isNullable($primaryType) ? '%s(null === $data[%s]) ? null : $this->denormalizer->denormalize($data[%2$s], %s, $format, [' : '%s$this->denormalizer->denormalize($data[%s], %s, $format, [', $assignment, \var_export($meta->name, true), \var_export(TypeHelpers::getDenormalizationClass($primaryType), true))
             ->indent()
             ->printfln('\'object_to_populate\' => %s,', $objectToPopulate)
         ;
@@ -910,11 +998,11 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             ->printfln('\'inbound_property\'   => %s,', \var_export($meta->name, true))
         ;
         if (null !== $inverseMeta) {
-            $fd->printfln('\'force_properties\'   => \\is_array($data[%s]) ? [%s => %s] : null,', \var_export($meta->name, true), \var_export($inverseMeta->name, true), self::isCollectionObject($inverseMeta->type) ? \sprintf('isset($data[%s][%s]) ? [\'$merge\', $data[%1$s][%2$s], [\'$add\', $object]] : (\array_key_exists(%2$s, $data[%1$s]) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true), \var_export($inverseMeta->name, true)) : '$object');
+            $fd->printfln('\'force_properties\'   => \\is_array($data[%s]) ? [%s => %s] : null,', \var_export($meta->name, true), \var_export($inverseMeta->name, true), TypeHelpers::isCollectionObject($inverseMeta->type) ? \sprintf('isset($data[%s][%s]) ? [\'$merge\', $data[%1$s][%2$s], [\'$add\', $object]] : (\array_key_exists(%2$s, $data[%1$s]) ? [$object] : [\'$add\', $object])', \var_export($meta->name, true), \var_export($inverseMeta->name, true)) : '$object');
         } else {
             $fd->printfln('\'force_properties\'   => null,');
         }
-        $isCollectionObject = self::isCollectionObject($primaryType);
+        $isCollectionObject = TypeHelpers::isCollectionObject($primaryType);
         $inverseRemove = ($isCollectionObject && null !== $helpers) ? self::generateRemove($inverseMeta, $helpers, '$element') : null;
         if ($isCollectionObject && (null !== $inverseRemove || $meta->autoRemove)) {
             $fd
@@ -946,7 +1034,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
     private static function emitRemoveFromORM(StreamWriter $fd, NormalizableProperty $inverseMeta, array $helpers, string $previousValue): void
     {
-        if (self::isCollectionObject($inverseMeta->type)) {
+        if (TypeHelpers::isCollectionObject($inverseMeta->type)) {
             if (isset($inverseMeta->getTemplate) || isset($inverseMeta->getForUpdateTemplate)) {
                 $inverseExpression = self::generateGetForUpdate($inverseMeta, $helpers, $previousValue);
                 $fd
@@ -962,14 +1050,25 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
         }
     }
 
-    private static function generateChecks(array $properties): array
+    /**
+     * @param int[] $mask
+     */
+    private static function generateChecks(array $mask, bool $all = false): ?string
     {
         $checks = [];
-        foreach ($properties as $property => $_) {
-            $checks[$property] = \sprintf('($attributes[%s] ?? false)', \var_export($property, true));
+        foreach ($mask as $wordIndex => $word) {
+            if (0 !== $word) {
+                $checks[] = $all
+                    ? \sprintf('%d !== ($mask[%d] & %1$d)', $word, $wordIndex)
+                    : \sprintf('0 !== ($mask[%d] & 0x%X)', $wordIndex, $word);
+            }
         }
 
-        return $checks;
+        if (empty($checks)) {
+            return null;
+        }
+
+        return \implode($all ? ' && ' : ' || ', $checks);
     }
 
     private static function generateRemove(?NormalizableProperty $meta, array $helpers, string $old): ?string
@@ -980,7 +1079,7 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
 
         $add = null;
         $remove = null;
-        if (self::isCollectionObject($meta->type)) {
+        if (TypeHelpers::isCollectionObject($meta->type)) {
             if (isset($meta->getTemplate) || isset($meta->getForUpdateTemplate)) {
                 $inverseExpression = self::generateGetForUpdate($meta, $helpers, $old);
                 $remove = \sprintf('%s->removeElement($object);', $inverseExpression);
@@ -1021,28 +1120,26 @@ class SpecializedNormalizerCompiler implements ClassGeneratorInterface
             : null;
     }
 
-    private static function requiresNormalization(?Type $type): bool
+    /**
+     * @param int[]    $mask
+     * @param string[] $propertyNames
+     */
+    private static function enumerateProperties(array $mask, array $propertyNames): \Generator
     {
-        return null === $type || Type::BUILTIN_TYPE_ARRAY === $type->getBuiltinType() || Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType();
+        /**
+         * @var int $wordIndex
+         * @var int $bitIndex
+         */
+        foreach (BitOperations::enumerateOnesInMask($mask) as [$wordIndex, $bitIndex]) {
+            yield [$propertyNames[$wordIndex][$bitIndex], $wordIndex, $bitIndex];
+        }
     }
 
-    private static function requiresDenormalization(?Type $type): bool
+    /**
+     * @param int[] $mask
+     */
+    private static function exportMask(array $mask): string
     {
-        return null !== $type && (Type::BUILTIN_TYPE_ARRAY === $type->getBuiltinType() || Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType()) && (!$type->isCollection() || self::requiresDenormalization($type->getCollectionValueType()));
-    }
-
-    private static function getDenormalizationClass(Type $type): string
-    {
-        return $type->isCollection() ? (self::getDenormalizationClass($type->getCollectionValueType()).'[]') : ($type->getClassName() ?? $type->getBuiltinType());
-    }
-
-    private static function isNullable(?Type $type): bool
-    {
-        return null === $type || $type->isNullable();
-    }
-
-    private static function isCollectionObject(?Type $type): bool
-    {
-        return null !== $type && $type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType();
+        return \sprintf('[%s]', \implode(', ', \array_map(fn (int $word): string => \sprintf('0x%X', $word), $mask)));
     }
 }

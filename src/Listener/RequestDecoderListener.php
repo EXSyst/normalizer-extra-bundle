@@ -14,14 +14,12 @@ namespace EXSyst\NormalizerExtraBundle\Listener;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 
-class RequestDecoderListener
+readonly class RequestDecoderListener
 {
-    private DecoderInterface $decoder;
     private array $context;
 
-    public function __construct(DecoderInterface $decoder, array $context = [])
+    public function __construct(private DecoderInterface $decoder, array $context = [])
     {
-        $this->decoder = $decoder;
         $this->context = [
             'json_decode_associative' => true,
         ] + $context;

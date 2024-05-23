@@ -19,14 +19,15 @@ class BreadthFirstNormalizer implements ContextAwareNormalizerInterface, Normali
 {
     use NormalizerAwareTrait;
 
-    private bool $implicit;
+    private readonly bool $implicit;
+    private readonly bool $mergeObjects;
 
-    public function __construct(bool $implicit)
+    public function __construct(bool $implicit, bool $mergeObjects = false)
     {
         $this->implicit = $implicit;
+        $this->mergeObjects = $mergeObjects;
     }
 
-    /** {@inheritdoc} */
     public function supportsNormalization($data, $format = null, array $context = [])
     {
         if (isset($context['breadth_first_helper'])) {
@@ -36,11 +37,10 @@ class BreadthFirstNormalizer implements ContextAwareNormalizerInterface, Normali
         return $this->implicit || $data instanceof BreadthFirstHelper;
     }
 
-    /** {@inheritdoc} */
     public function normalize($object, $format = null, array $context = [])
     {
         if (!($object instanceof BreadthFirstHelper)) {
-            $object = new BreadthFirstHelper($object);
+            $object = new BreadthFirstHelper($object, $context['merge_objects'] ?? $this->mergeObjects);
         }
 
         $result = null;

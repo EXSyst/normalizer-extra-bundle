@@ -18,14 +18,12 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 use Symfony\Component\Serializer\SerializerInterface;
 
-class SerializerExceptionListener
+readonly class SerializerExceptionListener
 {
-    private SerializerInterface $serializer;
     private array $context;
 
-    public function __construct(SerializerInterface $serializer, array $context = [])
+    public function __construct(private SerializerInterface $serializer, array $context = [])
     {
-        $this->serializer = $serializer;
         $this->context = $context + [
             'shape' => ['code' => null, 'message' => null],
         ];

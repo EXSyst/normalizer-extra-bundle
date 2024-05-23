@@ -25,51 +25,111 @@ abstract class SpecializedNormalizer implements NormalizerAwareInterface, Denorm
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    protected array $attributes;
+    /** @var string[][] */
+    protected array $propertyNames;
 
-    /** @var array[] */
-    protected array $groupsAttributes;
+    /** @var int[][] */
+    protected array $propertyIndices;
+
+    /** @var int[][] */
+    protected array $groupMasks;
+
+    /** @var int[] */
+    protected array $fullMask;
+
+    /** @var int[] */
+    protected array $emptyMask;
 
     protected ManagerRegistry $doctrine;
     protected ?AuthorizationCheckerInterface $authorizationChecker;
 
-    protected function getReadAttributeSet(array $context): array
+    /**
+     * @param int[] $mask
+     * @param int[] $mask2
+     */
+    abstract protected static function unionMask(array &$mask, array $mask2): void;
+
+    /**
+     * @param int[] $mask
+     * @param int[] $mask2
+     */
+    abstract protected static function intersectMask(array &$mask, array $mask2): void;
+
+    /**
+     * @param int[] $mask
+     * @param int[] $subtrahend
+     */
+    abstract protected static function subtractMask(array &$mask, array $subtrahend): void;
+
+    /**
+     * @param int[] $mask
+     *
+     * @return true[]
+     */
+    abstract protected static function decodeMaskProperties(array $mask): array;
+
+    /**
+     * @param int[] $mask
+     * @param int[] $index
+     */
+    protected static function setMaskBit(array &$mask, ?array $index, bool $value): void
     {
-        if (isset($context['shape'])) {
-            $shape = self::parseShape($context['shape']);
-            $attributes = \array_diff_key($this->resolveHalfShape($shape['included']), $this->resolveHalfShape($shape['excluded']));
-            if (isset($context['allowed_groups'])) {
-                $attributes = \array_intersect_key($attributes, $this->getGroupsAttributeSet($context['allowed_groups']));
-            } elseif (isset($context['groups'])) {
-                $attributes = \array_intersect_key($attributes, $this->getGroupsAttributeSet($context['groups']));
-            }
-        } elseif (isset($context['groups'])) {
-            $attributes = $this->getGroupsAttributeSet($context['groups']);
-        } else {
-            $attributes = $this->attributes;
+        if (null === $index) {
+            return;
         }
 
-        return $attributes;
+        $wordIndex = $index[0];
+        $word = 1 << $index[1];
+        if ($value) {
+            $mask[$wordIndex] |= $word;
+        } else {
+            $mask[$wordIndex] &= ~$word;
+        }
     }
 
-    protected function getWriteAttributeSet(array $context, array $data): array
+    /**
+     * @return int[]
+     */
+    protected function getReadMask(array $context): array
+    {
+        if (isset($context['shape'])) {
+            $mask = $this->getShapeMask($context['shape']);
+            if (isset($context['allowed_groups'])) {
+                static::intersectMask($mask, $this->getGroupsMask($context['allowed_groups']));
+            } elseif (isset($context['groups'])) {
+                static::intersectMask($mask, $this->getGroupsMask($context['groups']));
+            }
+        } elseif (isset($context['groups'])) {
+            $mask = $this->getGroupsMask($context['groups']);
+        } else {
+            $mask = $this->fullMask;
+        }
+
+        return $mask;
+    }
+
+    protected function getWriteMask(array $context, array $data): array
     {
         if (isset($context['groups'])) {
-            $attributes = $this->getGroupsAttributeSet($context['groups']);
+            $mask = $this->getGroupsMask($context['groups']);
         } else {
-            $attributes = $this->attributes;
+            $mask = $this->fullMask;
         }
         if (isset($context['force_properties'])) {
             foreach ($context['force_properties'] as $property => $_) {
-                $attributes[$property] = true;
+                self::setMaskBit($mask, $this->propertyIndices[$property] ?? null, true);
             }
         }
-        $attributes += $this->groupsAttributes['identity'] ?? [];
+        static::unionMask($mask, $this->groupMasks['identity'] ?? $this->emptyMask);
+        static::intersectMask($mask, $this->getPropertiesMask($data));
 
-        return \array_intersect_key($attributes, $data);
+        return $mask;
     }
 
-    private static function parseShape(array $shape): array
+    /**
+     * @return int[]
+     */
+    private function getShapeMask(array $shape): array
     {
         $included = [];
         $excluded = [];
@@ -80,51 +140,56 @@ abstract class SpecializedNormalizer implements NormalizerAwareInterface, Denorm
                 $included[$attribute] = true;
             }
         }
+        $mask = $this->getHalfShapeMask($included);
+        static::subtractMask($mask, $this->getHalfShapeMask($excluded));
 
-        return [
-            'included' => self::parseHalfShape($included),
-            'excluded' => self::parseHalfShape($excluded),
-        ];
+        return $mask;
     }
 
-    private static function parseHalfShape(array $halfShape): array
+    /**
+     * @return int[]
+     */
+    private function getHalfShapeMask(array $halfShape): array
     {
-        $attributes = [];
-        $groups = [];
-        $all = false;
+        $mask = $this->emptyMask;
         foreach ($halfShape as $attribute => $_) {
             if ('*' === $attribute) {
-                $all = true;
+                return $this->fullMask;
             } elseif (\strlen($attribute) >= 3 && 0 === \substr_compare($attribute, '...', 0, 3)) {
-                $groups[\substr($attribute, 3)] = true;
+                static::unionMask($mask, $this->groupMasks[\substr($attribute, 3)] ?? $this->emptyMask);
             } else {
-                $attributes[$attribute] = true;
+                self::setMaskBit($mask, $this->propertyIndices[$attribute] ?? null, true);
             }
         }
 
-        return [
-            'attributes' => $attributes,
-            'groups'     => $groups,
-            'all'        => $all,
-        ];
+        return $mask;
     }
 
-    private function getGroupsAttributeSet(array $groups): array
+    /**
+     * @return int[]
+     */
+    protected function getPropertiesMask(array $data): array
     {
-        $attributes = [];
-        foreach ($groups as $group) {
-            $attributes += $this->groupsAttributes[$group] ?? [];
+        $mask = $this->emptyMask;
+        foreach ($data as $property => $_) {
+            self::setMaskBit($mask, $this->propertyIndices[$property] ?? null, true);
         }
 
-        return $attributes;
+        return $mask;
     }
 
-    private function resolveHalfShape(array $parsedHalfShape): array
+    /**
+     * @param string[] $groups
+     *
+     * @return int[]
+     */
+    private function getGroupsMask(array $groups): array
     {
-        return \array_intersect_key(
-            $parsedHalfShape['attributes'] +
-            $this->getGroupsAttributeSet(\array_keys($parsedHalfShape['groups'])) +
-            ($parsedHalfShape['all'] ? $this->attributes : []),
-            $this->attributes);
+        $mask = $this->emptyMask;
+        foreach ($groups as $group) {
+            static::unionMask($mask, $this->groupMasks[$group] ?? $this->emptyMask);
+        }
+
+        return $mask;
     }
 }

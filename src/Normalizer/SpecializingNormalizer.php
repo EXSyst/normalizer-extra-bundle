@@ -23,29 +23,25 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 
 class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterface, NormalizerAwareInterface, DenormalizerAwareInterface, CacheableSupportsMethodInterface
 {
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    private SpecializedNormalizerCompiler $specializedNormalizerCompiler;
-    private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver;
-    private ?EntityInitializer $initializer;
+    public const string TYPE_KEY = '^';
 
     /** @var SpecializedNormalizer[] */
     private array $specializedNormalizers = [];
 
-    public function __construct(SpecializedNormalizerCompiler $specializedNormalizerCompiler, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?EntityInitializer $initializer)
-    {
-        $this->specializedNormalizerCompiler = $specializedNormalizerCompiler;
-        $this->classDiscriminatorResolver = $classDiscriminatorResolver;
-        $this->initializer = $initializer;
+    public function __construct(
+        private readonly SpecializedNormalizerCompiler $specializedNormalizerCompiler,
+        private readonly ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver,
+        private readonly ?EntityInitializer $initializer,
+    ) {
     }
 
-    /** {@inheritdoc} */
-    public function denormalize($data, $class, $format = null, array $context = [])
+    public function denormalize($data, $class, $format = null, array $context = []): mixed
     {
         if ($data instanceof $class) {
             return $data;
@@ -65,8 +61,7 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
         return $specializedNormalizer->denormalize($data, $class, $format, $context);
     }
 
-    /** {@inheritdoc} */
-    public function supportsDenormalization($data, $type, $format = null)
+    public function supportsDenormalization($data, $type, $format = null): bool
     {
         if (\class_exists($type)) {
             if (!(new \ReflectionClass($type))->isAbstract()) {
@@ -79,8 +74,7 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
         return null !== $this->classDiscriminatorResolver && null !== $this->classDiscriminatorResolver->getMappingForClass($type);
     }
 
-    /** {@inheritdoc} */
-    public function normalize($object, $format = null, array $context = [])
+    public function normalize($object, $format = null, array $context = []): array|\stdClass|null
     {
         if (null !== $this->initializer && isset($context['breadth_first_helper']) && $context['breadth_first_helper']->getCurrentObject() === $object && $this->initializer->collect($object)) {
             $helper = $context['breadth_first_helper'];
@@ -110,25 +104,23 @@ class SpecializingNormalizer implements NormalizerInterface, DenormalizerInterfa
             throw new \Exception(\sprintf('Maximum normalization depth (%d) exceeded, while trying to normalize %s', $context['max_depth'], self::hlStackTraceToString($context['hl_stack_trace'])));
         }
 
-        if (!isset($context['shape'])) {
-            $objectHash = \implode("\0", \array_merge([\spl_object_hash($object)], $context['groups'] ?? []));
-            if (isset($context[ObjectNormalizer::CIRCULAR_REFERENCE_LIMIT][$objectHash])) {
+        if (!isset($context['shape']) && !isset($context['breadth_first_helper'])) {
+            $objectHash = \implode("\0", \array_merge([\spl_object_id($object)], $context['groups'] ?? []));
+            if (isset($context['circular_reference_trace'][$objectHash])) {
                 throw new CircularReferenceException(\sprintf('A circular reference has been detected, while trying to normalize %s', self::hlStackTraceToString($context['hl_stack_trace'])));
             } else {
-                $context[ObjectNormalizer::CIRCULAR_REFERENCE_LIMIT][$objectHash] = 1;
+                $context['circular_reference_trace'][$objectHash] = 1;
             }
         }
 
         return $specializedNormalizer->normalize($object, $format, $context);
     }
 
-    /** {@inheritdoc} */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization($data, $format = null): bool
     {
-        return \is_object($data) && !($data instanceof \Traversable);
+        return \is_object($data) && !($data instanceof \Traversable) && !($data instanceof \UnitEnum);
     }
 
-    /** {@inheritdoc} */
     public function hasCacheableSupportsMethod(): bool
     {
         return __CLASS__ === \get_class($this);

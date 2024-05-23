@@ -19,7 +19,6 @@ class GroupsWriteSecurity
      */
     public function __construct(
         public array $value = [],
-    )
-    {
+    ) {
     }
 }

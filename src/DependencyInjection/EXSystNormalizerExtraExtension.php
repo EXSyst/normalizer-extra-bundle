@@ -11,6 +11,7 @@
 
 namespace EXSyst\NormalizerExtraBundle\DependencyInjection;
 
+use EXSyst\NormalizerExtraBundle\Metadata\NormalizableMetadataProviderInterface;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -24,8 +25,7 @@ class EXSystNormalizerExtraExtension extends Extension
         return 'exsyst_normalizer_extra';
     }
 
-    /** {@inheritdoc} */
-    public function load(array $configs, ContainerBuilder $container)
+    public function load(array $configs, ContainerBuilder $container): void
     {
         $processor = new Processor();
         $configuration = new Configuration();
@@ -33,10 +33,14 @@ class EXSystNormalizerExtraExtension extends Extension
         $config = $processor->processConfiguration($configuration, $configs);
 
         $container->setParameter('exsyst_normalizer_extra.implicit_breadth_first', $config['options']['implicit_breadth_first']);
+        $container->setParameter('exsyst_normalizer_extra.implicit_merge_objects', $config['options']['implicit_merge_objects']);
         $container->setParameter('exsyst_normalizer_extra.default_context', ($config['options']['default_context'] ?? []) + [
             'json_decode_associative' => true,
             'yaml_inline'             => 2,
         ]);
+
+        $container->registerForAutoconfiguration(NormalizableMetadataProviderInterface::class)
+            ->addTag('exsyst.normalizer_extra.metadata_provider');
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yaml');
@@ -54,6 +58,9 @@ class EXSystNormalizerExtraExtension extends Extension
         }
         if ($config['normalizers']['collection']) {
             $loader->load('services_normalizer_collection.yaml');
+        }
+        if ($config['normalizers']['enum']) {
+            $loader->load('services_normalizer_enum.yaml');
         }
         if ($config['normalizers']['specializing']) {
             $loader->load('services_normalizer_specializing.yaml');

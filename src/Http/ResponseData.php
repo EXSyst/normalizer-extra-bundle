@@ -13,18 +13,10 @@ namespace EXSyst\NormalizerExtraBundle\Http;
 
 class ResponseData
 {
-    /** @var mixed */
-    private $content;
-
-    private int $status;
-    private array $headers;
     private array $context = [];
 
-    public function __construct($content, int $status = 200, array $headers = [])
+    public function __construct(private mixed $content, private int $status = 200, private array $headers = [])
     {
-        $this->content = $content;
-        $this->status = $status;
-        $this->headers = $headers;
     }
 
     public static function create($content, int $status = 200, array $headers = []): self
@@ -42,12 +34,12 @@ class ResponseData
         return null === $this->content && 204 === $this->status;
     }
 
-    public function getContent()
+    public function getContent(): mixed
     {
         return $this->content;
     }
 
-    public function setContent($content): self
+    public function setContent(mixed $content): static
     {
         $this->content = $content;
 
@@ -59,7 +51,7 @@ class ResponseData
         return $this->status;
     }
 
-    public function setStatus(int $status): self
+    public function setStatus(int $status): static
     {
         $this->status = $status;
 
@@ -71,7 +63,7 @@ class ResponseData
         return $this->headers;
     }
 
-    public function setHeaders(array $headers): self
+    public function setHeaders(array $headers): static
     {
         $this->headers = $headers;
 
@@ -83,7 +75,7 @@ class ResponseData
         return $this->context;
     }
 
-    public function setContext(array $context): self
+    public function setContext(array $context): static
     {
         $this->context = $context;
 

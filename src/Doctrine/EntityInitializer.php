@@ -12,12 +12,11 @@
 namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Proxy\Proxy;
+use Doctrine\Persistence\Proxy;
 
 class EntityInitializer extends DoctrineInitializer
 {
-    /** {@inheritdoc} */
-    public function collect($object): bool
+    public function collect(mixed $object): bool
     {
         if (!($object instanceof Proxy)) {
             return false;
@@ -25,12 +24,11 @@ class EntityInitializer extends DoctrineInitializer
         if ($object->__isInitialized()) {
             return false;
         }
-        $this->objects[\spl_object_hash($object)] = $object;
+        $this->objects[\spl_object_id($object)] = $object;
 
         return true;
     }
 
-    /** {@inheritdoc} */
     public function process(): void
     {
         if (empty($this->objects)) {

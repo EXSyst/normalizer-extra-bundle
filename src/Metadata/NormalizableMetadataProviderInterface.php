@@ -17,6 +17,8 @@ interface NormalizableMetadataProviderInterface
 
     public function getGroupsSecurity(string $className): ?GroupsSecurity;
 
+    public function getClientType(string $className): ?ClientType;
+
     /**
      * @return string[]|null
      */

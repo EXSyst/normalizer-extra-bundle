@@ -13,15 +13,13 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 
 class ChainNormalizableMetadataProvider implements NormalizableMetadataProviderInterface
 {
-    /** @var NormalizableMetadataProviderInterface[] */
-    private array $providers;
-
-    public function __construct(array $providers)
+    /**
+     * @param NormalizableMetadataProviderInterface[] $providers
+     */
+    public function __construct(private readonly array $providers)
     {
-        $this->providers = $providers;
     }
 
-    /** {@inheritdoc} */
     public function getFactory(string $className): ?ClassFactory
     {
         foreach ($this->providers as $provider) {
@@ -34,7 +32,6 @@ class ChainNormalizableMetadataProvider implements NormalizableMetadataProviderI
         return null;
     }
 
-    /** {@inheritdoc} */
     public function getGroupsSecurity(string $className): ?GroupsSecurity
     {
         /** @var GroupsSecurity|null $security */
@@ -54,7 +51,18 @@ class ChainNormalizableMetadataProvider implements NormalizableMetadataProviderI
         return $security;
     }
 
-    /** {@inheritdoc} */
+    public function getClientType(string $className): ?ClientType
+    {
+        foreach ($this->providers as $provider) {
+            $type = $provider->getClientType($className);
+            if (null !== $type) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
     public function getGroupsInitializers(string $className): ?array
     {
         $initializers = null;
@@ -68,7 +76,6 @@ class ChainNormalizableMetadataProvider implements NormalizableMetadataProviderI
         return $initializers;
     }
 
-    /** {@inheritdoc} */
     public function getNormalizableProperties(string $className): array
     {
         $properties = [];

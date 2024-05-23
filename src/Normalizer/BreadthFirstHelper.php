@@ -20,8 +20,12 @@ class BreadthFirstHelper implements NormalizerAwareInterface
 {
     use NormalizerAwareTrait;
 
-    /** @var mixed */
-    private $root;
+    public const string INDEX_KEY = '#';
+
+    private static int $nextBindObjectIndex = 1;
+
+    private readonly mixed $root;
+    private readonly bool $mergeObjects;
 
     /** @var InitializerInterface[] */
     private array $initializers = [];
@@ -29,47 +33,85 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     /** @var array[] */
     private array $queue = [];
 
-    /** @var mixed */
-    private $currentBindPoint;
+    /** @var int[] */
+    private array $objectBindIndices = [];
 
-    /** @var mixed */
-    private $currentObject;
+    /** @var array[] */
+    private array $objectBinds = [];
 
-    public function __construct($root = null)
+    private mixed $currentBindPoint = null;
+    private mixed $currentObject = null;
+    private ?string $currentMergeKey = null;
+    private ?int $currentBindIndex = null;
+
+    public function __construct(mixed $root = null, bool $mergeObjects = false)
     {
         $this->root = $root;
+        $this->mergeObjects = $mergeObjects;
     }
 
-    public function getRoot()
+    public function getRoot(): mixed
     {
         return $this->root;
     }
 
-    public function &getCurrentBindPoint()
+    public function &getCurrentBindPoint(): mixed
     {
         return $this->currentBindPoint;
     }
 
-    public function getCurrentObject()
+    public function getCurrentObject(): mixed
     {
         return $this->currentObject;
     }
 
-    public function registerInitializer(InitializerInterface $initializer): self
+    public function getCurrentBindIndex(): ?int
     {
-        $this->initializers[\spl_object_hash($initializer)] = $initializer;
+        if (null === $this->currentBindIndex && null !== $this->currentMergeKey) {
+            $index = self::$nextBindObjectIndex++;
+            $this->objectBindIndices[$this->currentMergeKey] = $index;
+            $this->objectBinds[$index] = [&$this->currentBindPoint, $this->currentObject, 1, []];
+            $this->currentBindIndex = $index;
+        }
+
+        return $this->currentBindIndex;
+    }
+
+    public function &getPrimaryBindPoint(int $index): mixed
+    {
+        if (!isset($this->objectBinds[$index])) {
+            throw new \RuntimeException(\sprintf('Unknown bind index %d', $index));
+        }
+
+        return $this->objectBinds[$index][0];
+    }
+
+    public function scheduleUnset(int $index, string $key): static
+    {
+        if (!isset($this->objectBinds[$index])) {
+            throw new \RuntimeException(\sprintf('Unknown bind index %d', $index));
+        }
+
+        $this->objectBinds[$index][3][$key] = ($this->objectBinds[$index][3][$key] ?? 0) + 1;
 
         return $this;
     }
 
-    public function bind(&$point, NormalizerInterface $normalizer, $object, ?string $format = null, array $context = []): self
+    public function registerInitializer(InitializerInterface $initializer): static
+    {
+        $this->initializers[\spl_object_id($initializer)] = $initializer;
+
+        return $this;
+    }
+
+    public function bind(mixed &$point, NormalizerInterface $normalizer, mixed $object, ?string $format = null, array $context = []): static
     {
         $this->queue[] = [&$point, $normalizer, $object, $format, $context];
 
         return $this;
     }
 
-    public function resolve()
+    public function resolve(): static
     {
         while (\count($this->initializers) > 0 || \count($this->queue) > 0) {
             $initializers = $this->initializers;
@@ -83,15 +125,73 @@ class BreadthFirstHelper implements NormalizerAwareInterface
             foreach ($queue as $instruction) {
                 $this->currentBindPoint = &$instruction[0];
                 $this->currentObject = $instruction[2];
-                $result = $instruction[1]->normalize($instruction[2], $instruction[3], $instruction[4]);
+                $this->currentMergeKey = null;
+                $this->currentBindIndex = null;
+                $result = $this->resolveInstruction($instruction[1], $instruction[2], $instruction[3], $instruction[4]);
                 if (null !== $result) {
                     $this->currentBindPoint = $result;
                 }
             }
             unset($this->currentBindPoint);
-            unset($this->currentObject);
+            $this->currentObject = null;
+            $this->currentMergeKey = null;
+            $this->currentBindIndex = null;
         }
 
+        foreach ($this->objectBinds as &$objectBind) {
+            $refCount = $objectBind[2];
+            if (1 === $refCount && \is_array($objectBind[0])) {
+                unset($objectBind[0][self::INDEX_KEY]);
+            }
+            foreach ($objectBind[3] as $key => $unsetCount) {
+                if ($unsetCount === $refCount) {
+                    unset($objectBind[0][$key]);
+                }
+            }
+        }
+        unset($objectBind);
+
+        $this->objectBindIndices = [];
+        $this->objectBinds = [];
+
         return $this;
+    }
+
+    private function resolveInstruction(NormalizerInterface $normalizer, mixed $object, ?string $format = null, array $context = []): mixed
+    {
+        if ($this->mergeObjects && \is_object($object)) {
+            if (null === $this->currentBindPoint) {
+                $inlineProperty = $context['inline_property'] ?? null;
+                $mergeKey = \spl_object_id($this->currentObject);
+                if (null !== $inlineProperty) {
+                    $mergeKey = \sprintf('%d.%s', $mergeKey, $inlineProperty);
+                }
+                if (isset($this->objectBindIndices[$mergeKey])) {
+                    $index = $this->objectBindIndices[$mergeKey];
+                    $this->currentBindPoint = [self::INDEX_KEY => $index];
+                    $this->currentBindIndex = $index;
+                    ++$this->objectBinds[$index][2];
+                    $this->currentBindPoint = &$this->objectBinds[$index][0];
+                } else {
+                    $this->currentMergeKey = $mergeKey;
+                }
+            } else {
+                $index = self::tryGetStubBindIndex($this->currentBindPoint);
+                if (null !== $index) {
+                    $this->currentBindIndex = $index;
+                    ++$this->objectBinds[$index][2];
+                    $this->currentBindPoint = &$this->objectBinds[$index][0];
+                }
+            }
+        }
+
+        return $normalizer->normalize($object, $format, $context);
+    }
+
+    public static function tryGetStubBindIndex(mixed $value): ?int
+    {
+        return \is_array($value) && 1 === \count($value) && [self::INDEX_KEY] === \array_keys($value)
+            ? $value[self::INDEX_KEY]
+            : null;
     }
 }

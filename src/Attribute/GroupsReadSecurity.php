@@ -19,7 +19,6 @@ class GroupsReadSecurity
      */
     public function __construct(
         public array $value = [],
-    )
-    {
+    ) {
     }
 }

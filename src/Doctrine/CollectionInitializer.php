@@ -11,23 +11,19 @@
 
 namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
-use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
-use Doctrine\ORM\Proxy\Proxy;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\Proxy;
 
 class CollectionInitializer extends DoctrineInitializer
 {
-    private ?EntityInitializer $entityInitializer;
-
-    public function __construct(ManagerRegistry $doctrine, ?EntityInitializer $entityInitializer)
+    public function __construct(ManagerRegistry $doctrine, private readonly ?EntityInitializer $entityInitializer)
     {
         parent::__construct($doctrine);
-        $this->entityInitializer = $entityInitializer;
     }
 
-    /** {@inheritdoc} */
-    public function collect($object): bool
+    public function collect(mixed $object): bool
     {
         if (!($object instanceof PersistentCollection)) {
             return false;
@@ -35,12 +31,11 @@ class CollectionInitializer extends DoctrineInitializer
         if ($object->isInitialized()) {
             return false;
         }
-        $this->objects[\spl_object_hash($object)] = $object;
+        $this->objects[\spl_object_id($object)] = $object;
 
         return true;
     }
 
-    /** {@inheritdoc} */
     public function process(): void
     {
         if (empty($this->objects)) {
@@ -110,7 +105,7 @@ class CollectionInitializer extends DoctrineInitializer
     }
 
     /** @internal */
-    public function getOwnerIdentifier(PersistentCollection $collection)
+    public function getOwnerIdentifier(PersistentCollection $collection): mixed
     {
         return $this->getIdentifier($collection->getOwner());
     }

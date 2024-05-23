@@ -1,0 +1,12 @@
+services:
+  EXSyst\NormalizerExtraBundle\Compiler\EnumNormalizerCompiler:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  EXSyst\NormalizerExtraBundle\Normalizer\EnumNormalizer:
+    autowire: true
+    autoconfigure: true
+    public: false
+    tags:
+      - { name: serializer.normalizer, priority: -998 }

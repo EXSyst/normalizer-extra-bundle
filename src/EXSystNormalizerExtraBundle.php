@@ -13,7 +13,6 @@ namespace EXSyst\NormalizerExtraBundle;
 
 use EXSyst\NormalizerExtraBundle\DependencyInjection\Compiler\NormalizablePropertyProviderPass;
 use EXSyst\NormalizerExtraBundle\DependencyInjection\EXSystNormalizerExtraExtension;
-use EXSyst\NormalizerExtraBundle\Metadata\NormalizableMetadataProviderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
@@ -21,8 +20,6 @@ class EXSystNormalizerExtraBundle extends Bundle
 {
     public function build(ContainerBuilder $container)
     {
-        $container->registerForAutoconfiguration(NormalizableMetadataProviderInterface::class)
-            ->addTag('exsyst.normalizer_extra.metadata_provider');
         $container->addCompilerPass(new NormalizablePropertyProviderPass());
     }
 

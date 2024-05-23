@@ -11,16 +11,14 @@
 
 namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Proxy\Proxy;
+use Doctrine\Persistence\Proxy;
 use EXSyst\NormalizerExtraBundle\Initializer\InitializerInterface;
 
 abstract class DoctrineInitializer implements InitializerInterface
 {
-    protected ManagerRegistry $doctrine;
-
     /** @var ClassMetadata[] */
     protected array $metadata = [];
 
@@ -30,19 +28,15 @@ abstract class DoctrineInitializer implements InitializerInterface
     /** @var object[] */
     protected array $objects = [];
 
-    public function __construct(ManagerRegistry $doctrine)
+    public function __construct(protected readonly ManagerRegistry $doctrine)
     {
-        $this->doctrine = $doctrine;
     }
 
-    /** {@inheritdoc} */
-    abstract public function collect($object): bool;
+    abstract public function collect(mixed $object): bool;
 
-    /** {@inheritdoc} */
     abstract public function process(): void;
 
-    /** {@inheritdoc} */
-    public function initialize($object): void
+    public function initialize(mixed $object): void
     {
         if ($this->collect($object)) {
             $this->process();
@@ -55,7 +49,7 @@ abstract class DoctrineInitializer implements InitializerInterface
     }
 
     /** @internal */
-    public function getIdentifier(object $object)
+    public function getIdentifier(object $object): mixed
     {
         $class = self::getClass($object);
         $identifier = \array_values($this->getClassMetadata($class)->getIdentifierValues($object));

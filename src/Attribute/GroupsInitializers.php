@@ -19,7 +19,6 @@ class GroupsInitializers
      */
     public function __construct(
         public array $value = [],
-    )
-    {
+    ) {
     }
 }

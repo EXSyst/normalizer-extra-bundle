@@ -29,16 +29,10 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    private ManagerRegistry $doctrine;
-    private ?CollectionInitializer $initializer;
-
-    public function __construct(ManagerRegistry $doctrine, ?CollectionInitializer $initializer)
+    public function __construct(private readonly ManagerRegistry $doctrine, private readonly ?CollectionInitializer $initializer)
     {
-        $this->doctrine = $doctrine;
-        $this->initializer = $initializer;
     }
 
-    /** {@inheritdoc} */
     public function hasCacheableSupportsMethod(): bool
     {
         return __CLASS__ === \get_class($this)
@@ -46,15 +40,13 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
             && $this->denormalizer instanceof CacheableSupportsMethodInterface && $this->denormalizer->hasCacheableSupportsMethod();
     }
 
-    /** {@inheritdoc} */
-    public function supportsDenormalization($data, $type, $format = null, array $context = [])
+    public function supportsDenormalization($data, $type, $format = null, array $context = []): bool
     {
-        return '[]' === \substr($type, -2)
+        return \str_ends_with($type, '[]')
             && $this->denormalizer->supportsDenormalization($data, \substr($type, 0, -2), $format, $context);
     }
 
-    /** {@inheritdoc} */
-    public function denormalize($data, $class, $format = null, array $context = [])
+    public function denormalize($data, $class, $format = null, array $context = []): array|object
     {
         if (isset($context['object_to_populate']) && $context['object_to_populate'] instanceof Collection) {
             $unwrap = false;
@@ -73,19 +65,19 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     private function updateCollection(Collection $collection, array $data, string $class, ?string $format, array $context): void
     {
         if (\count($data) >= 1 && isset($data[0]) && \is_string($data[0]) && \strlen($data[0]) >= 1 && '$' === $data[0][0]) {
-            $opCode = CollectionOpCode::getValue(\strtoupper(\substr(\array_shift($data), 1))) ?? CollectionOpCode::UPDATE;
-            if (!CollectionOpCode::isValid($opCode)) {
-                $opCode = CollectionOpCode::UPDATE;
+            $opCode = CollectionOpCode::from(\substr(\array_shift($data), 1)) ?? CollectionOpCode::Update;
+            if (null === $opCode) {
+                $opCode = CollectionOpCode::Update;
             }
 
-            if (CollectionOpCode::MERGE !== $opCode && isset($context['index_by_property']) && 1 === \count($data) && \is_array($data[0])) {
+            if (CollectionOpCode::Merge !== $opCode && isset($context['index_by_property']) && 1 === \count($data) && \is_array($data[0])) {
                 $data = $data[0];
             }
         } else {
-            $opCode = CollectionOpCode::SET;
+            $opCode = CollectionOpCode::Set;
         }
 
-        if (CollectionOpCode::MERGE === $opCode) {
+        if (CollectionOpCode::Merge === $opCode) {
             foreach ($data as $element) {
                 $this->updateCollection($collection, $element, $class, $format, $context);
             }
@@ -103,18 +95,18 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
 
         $hashedCollection = [];
         foreach ($collection as $element) {
-            $hashedCollection[\spl_object_hash($element)] = $element;
+            $hashedCollection[\spl_object_id($element)] = $element;
         }
 
-        $preWrite = CollectionOpCode::hasAdd($opCode) ? null : ((CollectionOpCode::REMOVE === $opCode) ? function (): bool {
+        $preWrite = CollectionOpCode::hasAdd($opCode) ? null : ((CollectionOpCode::Remove === $opCode) ? function (): bool {
             return false;
         } : function ($element) use ($hashedCollection) {
-            return isset($hashedCollection[\spl_object_hash($element)]);
+            return isset($hashedCollection[\spl_object_id($element)]);
         });
         $hashedData = [];
         foreach ($data as $element) {
             $element = $this->denormalizer->denormalize($element, $class, $format, ['pre_write' => $preWrite] + $context);
-            $hashedData[\spl_object_hash($element)] = $element;
+            $hashedData[\spl_object_id($element)] = $element;
         }
 
         $onRemove = $context['on_remove'] ?? null;
@@ -142,7 +134,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
                     }
                 }
             }
-        } elseif (CollectionOpCode::REMOVE === $opCode) {
+        } elseif (CollectionOpCode::Remove === $opCode) {
             foreach ($hashedData as $hash => $element) {
                 if (isset($hashedCollection[$hash])) {
                     $collection->removeElement($element);
@@ -156,8 +148,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
         FlushProofUpdater::updateCollectionUsingContext($collection, $context);
     }
 
-    /** {@inheritdoc} */
-    public function normalize($object, $format = null, array $context = [])
+    public function normalize($object, $format = null, array $context = []): array|\stdClass|null
     {
         if (isset($context['breadth_first_helper']) && $context['breadth_first_helper']->getCurrentObject() === $object) {
             $this->normalizeBreadthFirst($object, $format, $context);
@@ -207,9 +198,23 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
                 $empty = false;
                 $normalizedElement = null;
                 $helper->bind($normalizedElement, $this->normalizer, $element, $format, [
-                    'continuation' => function () use (&$normalized, $key, &$normalizedElement): void {
-                        $normalized[$normalizedElement[$key]] = &$normalizedElement;
-                        unset($normalizedElement[$key]);
+                    'continuation' => function () use (&$normalized, $key, &$normalizedElement, $helper): void {
+                        if (isset($normalizedElement[$key])) {
+                            $primaryElement = &$normalizedElement;
+                        } else {
+                            $index = BreadthFirstHelper::tryGetStubBindIndex($normalizedElement);
+                            if (null !== $index) {
+                                $primaryElement = &$helper->getPrimaryBindPoint($index);
+                            } else {
+                                throw new \RuntimeException(\sprintf('Missing key %s and the element is not an index stub', $key));
+                            }
+                        }
+                        $normalized[$primaryElement[$key]] = &$normalizedElement;
+                        if (isset($primaryElement[BreadthFirstHelper::INDEX_KEY])) {
+                            $helper->scheduleUnset($primaryElement[BreadthFirstHelper::INDEX_KEY], $key);
+                        } else {
+                            unset($primaryElement[$key]);
+                        }
                     },
                 ] + $context);
                 unset($normalizedElement);
@@ -230,8 +235,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
         }
     }
 
-    /** {@inheritdoc} */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization($data, $format = null): bool
     {
         return \is_array($data) || $data instanceof \Traversable;
     }

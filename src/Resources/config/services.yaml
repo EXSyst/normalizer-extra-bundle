@@ -13,6 +13,7 @@ services:
   EXSyst\NormalizerExtraBundle\Normalizer\BreadthFirstNormalizer:
     arguments:
       $implicit: '%exsyst_normalizer_extra.implicit_breadth_first%'
+      $mergeObjects: '%exsyst_normalizer_extra.implicit_merge_objects%'
     autowire: true
     autoconfigure: true
     public: false

@@ -13,20 +13,18 @@ namespace EXSyst\NormalizerExtraBundle\Doctrine;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\Persistence\ObjectManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
-use Doctrine\ORM\Proxy\Proxy;
 use Doctrine\ORM\UnitOfWork;
+use Doctrine\Persistence\ObjectManager;
+use Doctrine\Persistence\Proxy;
 
 class FlushProofUpdater
 {
-    private ObjectManager $objectManager;
     private ?UnitOfWork $flushingUnitOfWork;
 
-    public function __construct(ObjectManager $objectManager, bool $flushing = false)
+    public function __construct(private readonly ObjectManager $objectManager, bool $flushing = false)
     {
-        $this->objectManager = $objectManager;
         $this->flushingUnitOfWork = ($flushing && $objectManager instanceof EntityManagerInterface) ? $objectManager->getUnitOfWork() : null;
     }
 
@@ -35,7 +33,7 @@ class FlushProofUpdater
         return new FlushProofUpdater($objectManager, \in_array($objectManager, $context['flushing_object_managers'] ?? [], true));
     }
 
-    public static function fromClassAndContext($entityOrClass, array $context): ?self
+    public static function fromClassAndContext(object|string $entityOrClass, array $context): ?self
     {
         if (empty($context['flushing_object_managers'])) {
             return null;
@@ -70,7 +68,7 @@ class FlushProofUpdater
         return null !== $this->flushingUnitOfWork;
     }
 
-    public function persist($entity): void
+    public function persist(object $entity): void
     {
         if (null !== $this->flushingUnitOfWork) {
             if (UnitOfWork::STATE_NEW === $this->flushingUnitOfWork->getEntityState($entity, UnitOfWork::STATE_NEW)) {
@@ -84,7 +82,7 @@ class FlushProofUpdater
         }
     }
 
-    public function update($entity): void
+    public function update(object $entity): void
     {
         if (null !== $this->flushingUnitOfWork || $this->objectManager instanceof EntityManagerInterface) {
             $unitOfWork = $this->flushingUnitOfWork ?? $this->objectManager->getUnitOfWork();
@@ -98,7 +96,7 @@ class FlushProofUpdater
         }
     }
 
-    public function remove($entity): void
+    public function remove(object $entity): void
     {
         $this->objectManager->remove($entity);
     }
@@ -138,7 +136,7 @@ class FlushProofUpdater
         }
     }
 
-    public function flush(): self
+    public function flush(): static
     {
         if (null === $this->flushingUnitOfWork) {
             if ($this->objectManager instanceof EntityManagerInterface) {

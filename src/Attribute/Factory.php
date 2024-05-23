@@ -18,7 +18,6 @@ class Factory
         public ?string $service = null,
         public ?string $class = null,
         public string $method = '__invoke',
-    )
-    {
+    ) {
     }
 }

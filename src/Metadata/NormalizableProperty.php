@@ -15,7 +15,7 @@ use Symfony\Component\PropertyInfo\Type;
 
 class NormalizableProperty
 {
-    public string $name;
+    public readonly string $name;
     public ?string $originalName = null;
 
     /** @var string[] */

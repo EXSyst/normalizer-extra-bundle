@@ -15,33 +15,27 @@ use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 
-class HeaderDecoderListener
+readonly class HeaderDecoderListener
 {
     /** @var string[] */
     private array $headerNames;
 
-    private string $attributeName;
-    private bool $allowFromQuery;
-    private DecoderInterface $decoder;
-    private ?DenormalizerInterface $denormalizer;
-    private ?string $class;
-    private string $format;
-    private array $context;
-
-    public function __construct(string $headerName, string $attributeName, bool $allowFromQuery, DecoderInterface $decoder, ?DenormalizerInterface $denormalizer = null, ?string $class = null, string $format = 'json', array $context = [], string ...$altHeaderNames)
-    {
+    public function __construct(
+        string $headerName,
+        private string $attributeName,
+        private bool $allowFromQuery,
+        private DecoderInterface $decoder,
+        private ?DenormalizerInterface $denormalizer = null,
+        private ?string $class = null,
+        private string $format = 'json',
+        private array $context = [],
+        string ...$altHeaderNames,
+    ) {
         if (null !== $class && null === $denormalizer) {
             throw new \LogicException(\sprintf('Cannot instantiate a HeaderDecoderListener(%s, %s, ...) with a class name (%s) but without a denormalizer', $headerName, $attributeName, $class));
         }
 
         $this->headerNames = array_merge([$headerName], $altHeaderNames);
-        $this->attributeName = $attributeName;
-        $this->allowFromQuery = $allowFromQuery;
-        $this->decoder = $decoder;
-        $this->denormalizer = $denormalizer;
-        $this->class = $class;
-        $this->format = $format;
-        $this->context = $context;
     }
 
     public function getHeaderName(): string

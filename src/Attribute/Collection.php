@@ -23,7 +23,6 @@ class Collection
      */
     public function __construct(
         public ?string $indexBy = null,
-    )
-    {
+    ) {
     }
 }

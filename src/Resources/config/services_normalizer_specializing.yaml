@@ -1,4 +1,9 @@
 services:
+  EXSyst\NormalizerExtraBundle\Compiler\EnumNormalizerCompiler:
+    autowire: true
+    autoconfigure: true
+    public: false
+
   EXSyst\NormalizerExtraBundle\Compiler\SpecializedNormalizerCompiler:
     autowire: true
     autoconfigure: true

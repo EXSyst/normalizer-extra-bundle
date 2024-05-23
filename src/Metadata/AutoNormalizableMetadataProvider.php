@@ -14,11 +14,13 @@ namespace EXSyst\NormalizerExtraBundle\Metadata;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use EXSyst\NormalizerExtraBundle\Attribute\Association;
+use EXSyst\NormalizerExtraBundle\Attribute\ClientType as ClientTypeAttribute;
 use EXSyst\NormalizerExtraBundle\Attribute\Collection;
 use EXSyst\NormalizerExtraBundle\Attribute\Factory;
 use EXSyst\NormalizerExtraBundle\Attribute\GroupsInitializers;
 use EXSyst\NormalizerExtraBundle\Attribute\GroupsReadSecurity;
 use EXSyst\NormalizerExtraBundle\Attribute\GroupsWriteSecurity;
+use EXSyst\NormalizerExtraBundle\Attribute\Ignore;
 use EXSyst\NormalizerExtraBundle\Reflection;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractorInterface;
 use Symfony\Component\PropertyInfo\Type;
@@ -27,26 +29,22 @@ use Symfony\Component\Serializer\Mapping\ClassDiscriminatorResolverInterface;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
-class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderInterface
+readonly class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderInterface
 {
-    private PropertyInfoExtractorInterface $propertyInfoExtractor;
-    private ClassMetadataFactoryInterface $classMetadataFactory;
-    private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver;
-    private ?NameConverterInterface $nameConverter;
-    private ?ManagerRegistry $doctrine;
-
-    public function __construct(PropertyInfoExtractorInterface $propertyInfoExtractor, ClassMetadataFactoryInterface $classMetadataFactory, ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver, ?NameConverterInterface $nameConverter, ?ManagerRegistry $doctrine)
-    {
-        $this->propertyInfoExtractor = $propertyInfoExtractor;
-        $this->classMetadataFactory = $classMetadataFactory;
-        $this->classDiscriminatorResolver = $classDiscriminatorResolver;
-        $this->nameConverter = $nameConverter;
-        $this->doctrine = $doctrine;
+    public function __construct(
+        private PropertyInfoExtractorInterface $propertyInfoExtractor,
+        private ClassMetadataFactoryInterface $classMetadataFactory,
+        private ?ClassDiscriminatorResolverInterface $classDiscriminatorResolver,
+        private ?NameConverterInterface $nameConverter,
+        private ?ManagerRegistry $doctrine,
+    ) {
     }
 
     /**
      * @template T
+     *
      * @param \ReflectionAttribute<T>[] $attributes
+     *
      * @return T|null
      */
     private static function newInstanceOfFirst(array $attributes): ?object
@@ -54,7 +52,6 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return empty($attributes) ? null : \reset($attributes)->newInstance();
     }
 
-    /** {@inheritdoc} */
     public function getFactory(string $className): ?ClassFactory
     {
         $reflClass = new \ReflectionClass($className);
@@ -73,7 +70,6 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return $factory;
     }
 
-    /** {@inheritdoc} */
     public function getGroupsSecurity(string $className): ?GroupsSecurity
     {
         $parentClass = \get_parent_class($className);
@@ -101,7 +97,24 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return $security;
     }
 
-    /** {@inheritdoc} */
+    public function getClientType(string $className): ?ClientType
+    {
+        $reflClass = new \ReflectionClass($className);
+        /** @var ClientTypeAttribute|null $factoryAttribute */
+        $clientTypeAttribute = self::newInstanceOfFirst($reflClass->getAttributes(ClientTypeAttribute::class));
+
+        if (null === $clientTypeAttribute) {
+            return null;
+        }
+
+        $type = new ClientType();
+        $type->module = $clientTypeAttribute->module;
+        $type->class = $clientTypeAttribute->class;
+        $type->factory = $clientTypeAttribute->factory;
+
+        return $type;
+    }
+
     public function getGroupsInitializers(string $className): ?array
     {
         $parentClass = \get_parent_class($className);
@@ -114,7 +127,6 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         return (null !== $initializersAttribute) ? ($initializersAttribute->value + ($parent ?? [])) : $parent;
     }
 
-    /** {@inheritdoc} */
     public function getNormalizableProperties(string $className): array
     {
         /** @var NormalizableProperty[] $properties */
@@ -173,8 +185,8 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
                 $collectionAttribute = self::newInstanceOfFirst($reflGetter->getAttributes(Collection::class));
             }
             if (null !== $reflProperty) {
-                $associationAttribute = $associationAttribute ?? self::newInstanceOfFirst($reflProperty->getAttributes(Association::class));
-                $collectionAttribute = $collectionAttribute ?? self::newInstanceOfFirst($reflProperty->getAttributes(Collection::class));
+                $associationAttribute ??= self::newInstanceOfFirst($reflProperty->getAttributes(Association::class));
+                $collectionAttribute ??= self::newInstanceOfFirst($reflProperty->getAttributes(Collection::class));
             }
 
             $associationAttribute = $this->getSyntheticAssociationAttribute($doctrineMetadata, $property->originalName, $associationAttribute);
@@ -231,7 +243,7 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         foreach ($methods as $method) {
             try {
                 $reflMethod = $class->getMethod($method);
-                if ($reflMethod->getNumberOfParameters() >= $arity && $reflMethod->getNumberOfRequiredParameters() <= $arity) {
+                if ($reflMethod->getNumberOfParameters() >= $arity && $reflMethod->getNumberOfRequiredParameters() <= $arity && empty($reflMethod->getAttributes(Ignore::class))) {
                     return $reflMethod;
                 }
             } catch (\ReflectionException $e) {
@@ -263,9 +275,9 @@ class AutoNormalizableMetadataProvider implements NormalizableMetadataProviderIn
         }
 
         $association = (null !== $physicalAssociation) ? clone $physicalAssociation : new Association();
-        $association->target = $association->target ?? $metadata->getAssociationTargetClass($name);
-        $association->toMany = $association->toMany ?? $metadata->isCollectionValuedAssociation($name);
-        $association->inversedBy = $association->inversedBy ?? $metadata->getAssociationMappedByTargetField($name) ?? $metadata->associationMappings[$name]['inversedBy'] ?? null;
+        $association->target ??= $metadata->getAssociationTargetClass($name);
+        $association->toMany ??= $metadata->isCollectionValuedAssociation($name);
+        $association->inversedBy ??= $metadata->getAssociationMappedByTargetField($name) ?? $metadata->associationMappings[$name]['inversedBy'] ?? null;
 
         return $association;
     }
