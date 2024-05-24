@@ -209,6 +209,9 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
                                 throw new \RuntimeException(\sprintf('Missing key %s and the element is not an index stub', $key));
                             }
                         }
+                        if (($normalized[$primaryElement[$key]] ?? null) === $normalizedElement) {
+                            return;
+                        }
                         $normalized[$primaryElement[$key]] = &$normalizedElement;
                         if (isset($primaryElement[BreadthFirstHelper::INDEX_KEY])) {
                             $helper->scheduleUnset($primaryElement[BreadthFirstHelper::INDEX_KEY], $key);
