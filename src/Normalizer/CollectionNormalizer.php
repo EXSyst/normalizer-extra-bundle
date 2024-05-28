@@ -189,7 +189,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
             return;
         }
 
-        $normalized = [];
+        $normalized ??= [];
 
         if (isset($context['index_by_property'])) {
             $empty = true;
