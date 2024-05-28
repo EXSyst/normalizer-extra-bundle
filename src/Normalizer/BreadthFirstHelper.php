@@ -70,7 +70,7 @@ class BreadthFirstHelper implements NormalizerAwareInterface
         if (null === $this->currentBindIndex && null !== $this->currentMergeKey) {
             $index = self::$nextBindObjectIndex++;
             $this->objectBindIndices[$this->currentMergeKey] = $index;
-            $this->objectBinds[$index] = [&$this->currentBindPoint, $this->currentObject, 1, []];
+            $this->objectBinds[$index] = [&$this->currentBindPoint, $this->currentObject, 1, [], null];
             $this->currentBindIndex = $index;
         }
 
@@ -84,6 +84,15 @@ class BreadthFirstHelper implements NormalizerAwareInterface
         }
 
         return $this->objectBinds[$index][0];
+    }
+
+    public function &getNormalizationState(int $index): mixed
+    {
+        if (!isset($this->objectBinds[$index])) {
+            throw new \RuntimeException(\sprintf('Unknown bind index %d', $index));
+        }
+
+        return $this->objectBinds[$index][4];
     }
 
     public function scheduleUnset(int $index, string $key): static

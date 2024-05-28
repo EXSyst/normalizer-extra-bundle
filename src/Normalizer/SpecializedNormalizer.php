@@ -99,10 +99,17 @@ abstract class SpecializedNormalizer implements NormalizerAwareInterface, Denorm
             } elseif (isset($context['groups'])) {
                 static::intersectMask($mask, $this->getGroupsMask($context['groups']));
             }
-        } elseif (isset($context['groups'])) {
+
+            return $mask;
+        }
+
+        if (isset($context['groups'])) {
             $mask = $this->getGroupsMask($context['groups']);
         } else {
             $mask = $this->fullMask;
+        }
+        if (isset($context['exclude_groups'])) {
+            static::subtractMask($mask, $this->getGroupsMask($context['exclude_groups']));
         }
 
         return $mask;
