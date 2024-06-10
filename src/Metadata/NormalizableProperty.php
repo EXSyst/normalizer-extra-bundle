@@ -22,6 +22,7 @@ class NormalizableProperty
 
     public bool $alwaysNormalize = false;
     public ?Type $type = null;
+    public bool $preserveKeys = true;
     public ?string $indexBySubProperty = null;
     public ?string $inlineSubProperty = null;
     public ?string $inverseSubProperty = null;

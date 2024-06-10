@@ -19,9 +19,11 @@ namespace EXSyst\NormalizerExtraBundle\Attribute;
 class Collection
 {
     /**
-     * @param string|null $indexBy property of the elements to use as keys instead of their position, can be a property merged by inline
+     * @param bool        $preserveKeys whether to preserve keys of the collection
+     * @param string|null $indexBy      property of the elements to use as keys instead of their position, can be a property merged by inline
      */
     public function __construct(
+        public bool $preserveKeys = true,
         public ?string $indexBy = null,
     ) {
     }

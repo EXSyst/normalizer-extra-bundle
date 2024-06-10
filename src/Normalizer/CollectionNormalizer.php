@@ -159,8 +159,14 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
         }
 
         $normalized = [];
-        foreach ($object as $key => $element) {
-            $normalized[$key] = $this->normalizer->normalize($element, $format, $context);
+        if ($context['preserve_keys'] ?? true) {
+            foreach ($object as $key => $element) {
+                $normalized[$key] = $this->normalizer->normalize($element, $format, $context);
+            }
+        } else {
+            foreach ($object as $element) {
+                $normalized[] = $this->normalizer->normalize($element, $format, $context);
+            }
         }
 
         if (isset($context['index_by_property'])) {
@@ -179,7 +185,7 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
         return $normalized;
     }
 
-    private function normalizeBreadthFirst($object, ?string $format, array $context): void
+    private function normalizeBreadthFirst(iterable $object, ?string $format, array $context): void
     {
         $helper = $context['breadth_first_helper'];
         $normalized = &$helper->getCurrentBindPoint();
@@ -227,9 +233,15 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
             if ($empty) {
                 $normalized = new \stdClass();
             }
-        } else {
+        } elseif ($context['preserve_keys'] ?? true) {
             foreach ($object as $key => $element) {
                 $helper->bind($normalized[$key], $this->normalizer, $element, $format, [
+                    'continuation' => null,
+                ] + $context);
+            }
+        } else {
+            foreach ($object as $element) {
+                $helper->bind($normalized[], $this->normalizer, $element, $format, [
                     'continuation' => null,
                 ] + $context);
             }

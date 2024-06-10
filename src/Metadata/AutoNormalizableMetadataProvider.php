@@ -212,6 +212,7 @@ readonly class AutoNormalizableMetadataProvider implements NormalizableMetadataP
                 }
             }
             if (null !== $collectionAttribute) {
+                $property->preserveKeys = $collectionAttribute->preserveKeys;
                 $property->indexBySubProperty = $collectionAttribute->indexBy;
             }
         }

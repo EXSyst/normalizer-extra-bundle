@@ -337,6 +337,7 @@ readonly class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
                     ->printfln('\'index_by_property\' => %s,', \var_export($meta->indexBySubProperty, true))
+                    ->printfln('\'preserve_keys\'     => %s,', \var_export($meta->preserveKeys, true))
                     ->printfln('\'skip_property\'     => %s,', \var_export(null !== $inverseMeta && null !== $inverseMeta->type && $inverseMeta->type->isCollection() ? null : $meta->inverseSubProperty, true))
                     ->printfln('\'inbound_property\'  => %s,', \var_export($property, true))
                     ->outdent()
@@ -369,7 +370,6 @@ readonly class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
         /* ----- Breadth-first Normalization ----- */
 
         $fd
-            ->printfln('/** @param T $object */')
             ->printfln('private function normalizeBreadthFirst(T $object, ?string $format = null, array $context = []): void')
             ->printfln('{')
             ->indent()
@@ -492,6 +492,7 @@ readonly class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
                 $fd
                     ->printfln('\'inline_property\'   => %s,', \var_export($meta->inlineSubProperty, true))
                     ->printfln('\'index_by_property\' => %s,', \var_export($meta->indexBySubProperty, true))
+                    ->printfln('\'preserve_keys\'     => %s,', \var_export($meta->preserveKeys, true))
                     ->printfln('\'skip_property\'     => %s,', \var_export(null !== $inverseMeta && null !== $inverseMeta->type && $inverseMeta->type->isCollection() ? null : $meta->inverseSubProperty, true))
                     ->printfln('\'inbound_property\'  => %s,', \var_export($property, true))
                     ->printfln('\'continuation\'      => $inline ? ($context[\'continuation\'] ?? null) : null,', \var_export($property, true))
