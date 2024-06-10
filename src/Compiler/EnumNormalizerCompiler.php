@@ -16,7 +16,7 @@ use EXSyst\DynamicClassGenerationBundle\Helper\StreamWriter;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
-class EnumNormalizerCompiler extends AbstractNormalizerCompiler
+readonly class EnumNormalizerCompiler extends AbstractNormalizerCompiler
 {
     protected const string PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\EnumNormalizer\\';
 

@@ -28,8 +28,9 @@ abstract class DoctrineInitializer implements InitializerInterface
     /** @var object[] */
     protected array $objects = [];
 
-    public function __construct(protected readonly ManagerRegistry $doctrine)
-    {
+    public function __construct(
+        protected readonly ManagerRegistry $doctrine,
+    ) {
     }
 
     abstract public function collect(mixed $object): bool;

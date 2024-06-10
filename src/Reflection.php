@@ -14,7 +14,7 @@ namespace EXSyst\NormalizerExtraBundle;
 /**
  * @internal
  */
-final class Reflection
+final readonly class Reflection
 {
     private function __construct()
     {

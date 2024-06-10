@@ -29,8 +29,10 @@ class CollectionNormalizer implements NormalizerInterface, ContextAwareDenormali
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    public function __construct(private readonly ManagerRegistry $doctrine, private readonly ?CollectionInitializer $initializer)
-    {
+    public function __construct(
+        private readonly ManagerRegistry $doctrine,
+        private readonly ?CollectionInitializer $initializer,
+    ) {
     }
 
     public function hasCacheableSupportsMethod(): bool

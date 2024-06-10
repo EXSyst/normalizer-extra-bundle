@@ -25,23 +25,23 @@ abstract class SpecializedNormalizer implements NormalizerAwareInterface, Denorm
     use NormalizerAwareTrait;
     use DenormalizerAwareTrait;
 
-    /** @var string[][] */
-    protected array $propertyNames;
-
-    /** @var int[][] */
-    protected array $propertyIndices;
-
-    /** @var int[][] */
-    protected array $groupMasks;
-
-    /** @var int[] */
-    protected array $fullMask;
-
-    /** @var int[] */
-    protected array $emptyMask;
-
-    protected ManagerRegistry $doctrine;
-    protected ?AuthorizationCheckerInterface $authorizationChecker;
+    /**
+     * @param string[][] $propertyNames
+     * @param int[][]    $propertyIndices
+     * @param int[][]    $groupMasks
+     * @param int[]      $fullMask
+     * @param int[]      $emptyMask
+     */
+    protected function __construct(
+        protected readonly ManagerRegistry $doctrine,
+        protected readonly ?AuthorizationCheckerInterface $authorizationChecker,
+        protected readonly array $propertyNames,
+        protected readonly array $propertyIndices,
+        protected readonly array $groupMasks,
+        protected readonly array $fullMask,
+        protected readonly array $emptyMask,
+    ) {
+    }
 
     /**
      * @param int[] $mask

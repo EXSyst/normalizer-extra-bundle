@@ -18,8 +18,10 @@ use Doctrine\Persistence\Proxy;
 
 class CollectionInitializer extends DoctrineInitializer
 {
-    public function __construct(ManagerRegistry $doctrine, private readonly ?EntityInitializer $entityInitializer)
-    {
+    public function __construct(
+        ManagerRegistry $doctrine,
+        private readonly ?EntityInitializer $entityInitializer,
+    ) {
         parent::__construct($doctrine);
     }
 

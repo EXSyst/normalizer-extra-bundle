@@ -21,7 +21,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 /**
  * @internal
  */
-abstract class AbstractNormalizerCompiler implements ClassGeneratorInterface
+abstract readonly class AbstractNormalizerCompiler implements ClassGeneratorInterface
 {
     protected const string PREFIX = '';
     protected const string SUFFIX = 'Normalizer';

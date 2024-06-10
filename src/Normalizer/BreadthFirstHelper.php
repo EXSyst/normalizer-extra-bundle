@@ -24,9 +24,6 @@ class BreadthFirstHelper implements NormalizerAwareInterface
 
     private static int $nextBindObjectIndex = 1;
 
-    private readonly mixed $root;
-    private readonly bool $mergeObjects;
-
     /** @var InitializerInterface[] */
     private array $initializers = [];
 
@@ -44,10 +41,10 @@ class BreadthFirstHelper implements NormalizerAwareInterface
     private ?string $currentMergeKey = null;
     private ?int $currentBindIndex = null;
 
-    public function __construct(mixed $root = null, bool $mergeObjects = false)
-    {
-        $this->root = $root;
-        $this->mergeObjects = $mergeObjects;
+    public function __construct(
+        private readonly mixed $root = null,
+        private readonly bool $mergeObjects = false,
+    ) {
     }
 
     public function getRoot(): mixed

@@ -14,7 +14,7 @@ namespace EXSyst\NormalizerExtraBundle;
 /**
  * @internal
  */
-final class BitOperations
+final readonly class BitOperations
 {
     private function __construct()
     {

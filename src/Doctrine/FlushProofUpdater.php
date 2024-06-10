@@ -23,8 +23,10 @@ class FlushProofUpdater
 {
     private ?UnitOfWork $flushingUnitOfWork;
 
-    public function __construct(private readonly ObjectManager $objectManager, bool $flushing = false)
-    {
+    public function __construct(
+        private readonly ObjectManager $objectManager,
+        bool $flushing = false,
+    ) {
         $this->flushingUnitOfWork = ($flushing && $objectManager instanceof EntityManagerInterface) ? $objectManager->getUnitOfWork() : null;
     }
 

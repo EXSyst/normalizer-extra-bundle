@@ -28,21 +28,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Serializer\Exception\ExtraAttributesException;
 
-class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
+readonly class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
 {
     protected const string PREFIX = 'EXSyst\\NormalizerExtraBundle\\__CG__\\SpecializedNormalizer\\';
 
-    private NormalizableMetadataProviderInterface $metadataProvider;
-    private ManagerRegistry $doctrine;
-    private ?AuthorizationCheckerInterface $authorizationChecker;
-    private ContainerInterface $container;
-
-    public function __construct(NormalizableMetadataProviderInterface $metadataProvider, ManagerRegistry $doctrine, ?AuthorizationCheckerInterface $authorizationChecker, ContainerInterface $container)
-    {
-        $this->metadataProvider = $metadataProvider;
-        $this->doctrine = $doctrine;
-        $this->authorizationChecker = $authorizationChecker;
-        $this->container = $container;
+    public function __construct(
+        private NormalizableMetadataProviderInterface $metadataProvider,
+        private ManagerRegistry $doctrine,
+        private ?AuthorizationCheckerInterface $authorizationChecker,
+        private ContainerInterface $container,
+    ) {
     }
 
     public function getForClass(string $className): SpecializedNormalizer
@@ -153,7 +148,7 @@ class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
         foreach ($helpers as $service => $helper) {
             $fd
                 ->printfln('/** @var object the %s service */', $service)
-                ->printfln('private object $%s;', $helper)
+                ->printfln('private readonly object $%s;', $helper)
                 ->printfln()
             ;
         }
@@ -164,18 +159,11 @@ class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
             ->printfln('public function __construct(ManagerRegistry $doctrine, ?AuthorizationCheckerInterface $authorizationChecker, ContainerInterface $container)')
             ->printfln('{')
             ->indent()
-        ;
-        foreach ($helpers as $service => $helper) {
-            $fd->printfln('$this->%s = $container->get(%s);', $helper, \var_export($service, true));
-        }
-        if (!empty($helpers)) {
-            $fd->printfln();
-        }
-        $fd
-            ->printfln('$this->doctrine = $doctrine;')
-            ->printfln('$this->authorizationChecker = $authorizationChecker;')
-            ->printfln()
-            ->printfln('$this->propertyNames = [')
+            ->printfln('parent::__construct(')
+            ->indent()
+            ->printfln('$doctrine,')
+            ->printfln('$authorizationChecker,')
+            ->printfln('propertyNames: [')
             ->indent()
         ;
         foreach ($propertyNames as $names) {
@@ -183,8 +171,8 @@ class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
         }
         $fd
             ->outdent()
-            ->printfln('];')
-            ->printfln('$this->propertyIndices = [', \var_export($propertyIndices, true))
+            ->printfln('],')
+            ->printfln('propertyIndices: [', \var_export($propertyIndices, true))
             ->indent()
         ;
         foreach ($propertyIndices as $property => $index) {
@@ -192,8 +180,8 @@ class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
         }
         $fd
             ->outdent()
-            ->printfln('];')
-            ->printfln('$this->groupMasks = [', \var_export($groupMasks, true))
+            ->printfln('],')
+            ->printfln('groupMasks: [', \var_export($groupMasks, true))
             ->indent()
         ;
         foreach ($groupMasks as $group => $mask) {
@@ -201,9 +189,19 @@ class SpecializedNormalizerCompiler extends AbstractNormalizerCompiler
         }
         $fd
             ->outdent()
-            ->printfln('];')
-            ->printfln('$this->fullMask = %s;', self::exportMask($fullMask))
-            ->printfln('$this->emptyMask = %s;', self::exportMask($emptyMask))
+            ->printfln('],')
+            ->printfln('fullMask: %s,', self::exportMask($fullMask))
+            ->printfln('emptyMask: %s,', self::exportMask($emptyMask))
+            ->outdent()
+            ->printfln(');')
+        ;
+        if (!empty($helpers)) {
+            $fd->printfln();
+        }
+        foreach ($helpers as $service => $helper) {
+            $fd->printfln('$this->%s = $container->get(%s);', $helper, \var_export($service, true));
+        }
+        $fd
             ->outdent()
             ->printfln('}')
             ->printfln()

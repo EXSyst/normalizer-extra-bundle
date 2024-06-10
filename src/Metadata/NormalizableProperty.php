@@ -15,7 +15,6 @@ use Symfony\Component\PropertyInfo\Type;
 
 class NormalizableProperty
 {
-    public readonly string $name;
     public ?string $originalName = null;
 
     /** @var string[] */
@@ -37,8 +36,7 @@ class NormalizableProperty
     public ?string $setTemplate = null;
     public ?string $setHelper = null;
 
-    public function __construct(string $name)
+    public function __construct(public readonly string $name)
     {
-        $this->name = $name;
     }
 }
