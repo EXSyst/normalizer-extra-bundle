@@ -23,10 +23,9 @@ readonly class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('exsyst_normalizer_extra');
+        $treeBuilder = new TreeBuilder('exsyst_normalizer_extra');
 
-        $rootNode
+        $treeBuilder->getRootNode()
             ->children()
                 ->arrayNode('features')
                     ->addDefaultsIfNotSet()
